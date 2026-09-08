@@ -1,0 +1,41 @@
+# Dokumentace FLIPCORE-OS
+
+## Přehled
+FLIPCORE-OS je centrální systém řízení pro podnikání na sekundárním trhu s počítači (výkup, renovace, testování, custom úpravy a prodej komponentů).
+
+## Technologický stoh
+- **Frontend:** React 19, Vite, TypeScript, Tailwind CSS
+- **Routing:** react-router-dom
+- **Backend:** Node.js (Express) pro proxyování API a logiku na straně serveru
+- **Persistence:** Firebase Firestore
+- **Architektura:** Feature-Sliced Architecture (/src/modules)
+
+## Základní standardy (SOP)
+- **Cílová marže:** 25% - 35%.
+- **Obrátka zásob:** Položky skladované > 30 dní jsou označeny jako "ležáky".
+- **Diagnostika:** Standardizované limity pro všechny komponenty (CPU ≤ 85°C, GPU Core ≤ 80°C, Hotspot delta ≤ 20°C, RAM 0 chyb).
+- **Bottleneck:** Maximální tolerovaná nerovnováha CPU vs GPU je 15%.
+- **AI Agent:** "Aneta" (poháněná Gemini API) provádí audity a kontroly kompatibility (na straně serveru).
+
+## Struktura projektu
+- `/src/app/`: Routing, stránky a obslužné rutiny API.
+- `/src/components/`: Agnostické komponenty UI (Tlačítka, Shell, atd.).
+- `/src/modules/`: Izolované obchodní moduly (sklad, ai-asistent, cenotvorba).
+- `/src/lib/`: Sdílené utility a infrastruktura (Firebase).
+- `/server.ts`: Vstupní bod na straně serveru pro proxyování a infrastrukturu.
+
+## Aktuální vývoj
+- **Routing:** Implementován react-router-dom s plnou navigační strukturou.
+- **Shell:** Layout s postranním panelem s aktivními odkazy pro všechny moduly včetně Dokumentace.
+- **Sklad:** Základní implementace Firestore pro správu hardwarových položek na skladě.
+- **Finance:** Modul pro sledování prodejů a výdajů s persistencí ve Firestore.
+- **Sestavy:** Dashboard pro monitorování hodnoty skladu, celkových příjmů a výdajů.
+- **Postup:** Stránka sledující stav vývoje ekosystému FLIPCORE-OS.
+
+## TODO
+- [x] Implementace generických Firebase hooků (useCollection) v `/src/hooks/`.
+- [x] Vytvoření sdílených UI komponent (StatCard, DataTable) v `/src/components/shared/`.
+- [x] Vytvoření sdílené UI komponenty (ProgressBar) v `/src/components/shared/`.
+- [x] Refaktorizace modulů na využití generické architektury.
+- [x] Vytvoření ProgressPage.
+- [x] Udržování automatické aktualizace dokumentace (llms.txt vždy v souladu se změnami v kódu).

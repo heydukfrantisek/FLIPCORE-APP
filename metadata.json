@@ -1,0 +1,6 @@
+{
+  "name": "FLIPCORE-OS",
+  "description": "A specialized secondary computer market management system for výkup, renovation, testing, and sales of PC components and systems.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

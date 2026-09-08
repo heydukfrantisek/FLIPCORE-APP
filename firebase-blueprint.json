@@ -1,0 +1,23 @@
+
+{
+  "entities": {
+    "Task": {
+      "title": "Task",
+      "description": "A task assigned to a user",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "in-progress", "done"] },
+        "assignedTo": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "Task" },
+      "description": "Collection of tasks"
+    }
+  }
+}
