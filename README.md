@@ -1,6 +1,6 @@
-# Název projektu
+# FLIPCOREAPP
 
-Krátký popis toho, co projekt dělá a pro koho.
+Základ SaaS aplikace — zatím bez konkrétního zaměření.
 
 ## Tech stack
 
@@ -50,3 +50,7 @@ src/
 ## Nasazení
 
 TODO: doplň cílovou platformu (Vercel / Docker / vlastní) a postup.
+
+## Kontakt
+
+[flipcorehk@gmial.com](mailto:flipcorehk@gmial.com)

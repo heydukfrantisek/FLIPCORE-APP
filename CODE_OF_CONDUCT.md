@@ -12,7 +12,7 @@ Nepřípustné je obtěžování, urážlivé komentáře nebo osobní útoky ja
 
 ## Vykázání
 
-Při porušení tohoto kódu napiš na [TODO: e-mail nebo formulář]. Zpráva bude posuzována
+Při porušení tohoto kódu napiš na flipcorehk@gmial.com. Zpráva bude posuzována
 diskrétně a v soukromí. U nezávažných případů může vedoucí nařídit opravu chování
 nebo varování, v závažných případech dočasný nebo trvalý zákaz přispívání.
 

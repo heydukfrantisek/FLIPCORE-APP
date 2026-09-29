@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Bezpečnostní problém
-    url: https://example.com/security
+    url: "mailto:flipcorehk@gmial.com?subject=Security%20report"
     about: Nahlas bezpečnostní zranitelnost soukromě, ne veřejným issue.
