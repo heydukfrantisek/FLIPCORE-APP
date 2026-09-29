@@ -49,7 +49,7 @@ Obsahuje entity `User`, `Component`, `Listing`, `ConditionGrade`, `RepairTicket`
 - [ ] `RepairTicket` s krocemi procesu, výsledkem a vazbou na `Listing`.
 - [ ] `Build` a `BuildItem` s vazbou na konkrétní nabídku; `BuildItem` nese i roli
       (např. `gpu`, `cooler`).
-- [ ] Peněžní částky jako celé desetinné číslo v haléřích (CZK), žádné `float` penízy.
+- [x] Peněžní částky jako celé číslo v haléřích (CZK), žádné `float` penízy — typ `Penize` a `formatCurrency` v `src/lib/`.
 - [ ] Ceny, názvy a filtry jako řetězce s pevným kódování a uložené v `utf8` (diakritika
       v názvech zboží jsou běžné).
 
@@ -62,10 +62,23 @@ Obsahuje entity `User`, `Component`, `Listing`, `ConditionGrade`, `RepairTicket`
 
 ### UI
 
-- [ ] App shell: hlavička s navigací (Katalog, Repas, PC build, Účet), patička s právními
-      texty.
-- [ ] Responzivní rozvržení pro desktop a mobilní prohlížeč.
-- [ ] Formátovací utility v `src/lib/format.ts` (cena, datum, stav) pokryté testy.
+Interní aplikace (provozní nástroj) — hotovo jako náhled nad ukázkovými daty, viz
+[dokument funkce 002](docs/funkce/002-zakladni-sablona-aplikace.md):
+
+- [x] App shell vnitřní aplikace: postranní menu, pět sekcí (nástěnka, sklad, finance,
+      sestavy, nastavení), aktivní položka a prázdné stavy.
+- [x] Responzivní rozvržení pro desktop a mobilní prohlížeč.
+- [x] Formátovací utility v `src/lib/format.ts` (cena, číslo, procento, datum).
+- [x] Obchodní výpočty v `src/lib/domain/` (marže, přehled skladu, DPH, kompatibilita
+      sestav) s testy.
+- [ ] Dočasnou datovou vrstvu `src/server/repo/data.ts` nahradit skutečnou persistence.
+- [ ] Ukládání nastavení a formuláře pro zápis dat (blokuje auth).
+
+Veřejná část — plánováno, navazuje na Fázi 2:
+
+- [ ] App shell pro zákazníka: hlavička s navigací (Katalog, Repas, PC build, Účet),
+      patička s právními texty.
+- [ ] Rozhodnout, zda veřejná část obsadí `/` a vnitřní aplikace dostane prefix.
 
 ### Testy a dokumentace
 

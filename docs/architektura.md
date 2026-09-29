@@ -2,7 +2,7 @@
 
 > Technický návrh systému. Produktové záměry a pravidla tvorby katalogu jsou v [vizi](vize.md), konkrétní změny v jednotlivých funkcích v [dokumentech funkce](funkce/). Uspořádání práce a priority v čase drží [ROADMAP.md](../ROADMAP.md).
 >
-> Poznámka k stavu: repozitář dnes obsahuje pouze scaffold aplikace (viz [dokument funkce 000](funkce/000-zalozeni-projektu.md)). Části tohoto dokumentu označené jako plánované jsou návrh a nepopisují existující kód.
+> Poznámka k stavu: repozitář obsahuje scaffold aplikace (viz [dokument funkce 000](funkce/000-zalozeni-projektu.md)) a vnitřní šablonu aplikace nad ukázkovými daty (viz [dokument funkce 002](funkce/002-zakladni-sablona-aplikace.md)). Části tohoto dokumentu označené jako plánované jsou návrh a nepopisují existující kód.
 
 ## Vrstvy a adresářová struktura
 
@@ -12,20 +12,25 @@ Aplikace je třívrstvá: uživatelské rozhraní, aplikační logika a datová 
 | --------------------- | ------------- | ------------------------------------------------------------------ | -------------------------------------------------------------- |
 | Rozhraní (UI)         | `src/app/`, `src/components/` | Routy, serverové i klientské komponenty, formuláře, zobrazení stavů | Komponenta neobsahuje obchodní logiku, jen volá vrstvu pod sebou |
 | Aplikační logika      | `src/lib/`, `src/server/` | Validace, výpočty, skládání sestav, transformace dat pro UI | Čisté funkce, bez vazby na konkrétní UI; testovatelné bez DOM |
-| Datová vrstva         | `src/db/`, `src/server/repo/` | Dotazy, perzistence, mapování entit | Jediné místo přístupu k datům, mimo UI                          |
+| Datová vrstva         | `src/db/`, `src/server/repo/` | Dotazy, perzistence, mapování entit | Jediné místo přístupu k datům, mimo UI |
 
-Plánovaná struktura adresářů (dnes existuje jen `src/app` a `src/lib`):
+Skutečná struktura adresářů:
 
 ```
 src/
   app/            routy (App Router), layouty, globalni styly
+    (app)/        skupina rout se spolecnou kostrou aplikace (nastenka, sklad, ...)
   components/     slozene UI komponenty (sdilene i specificke pro domenu)
-  lib/            sdilene utility a ciste helpers (napr. formatovani)
-  server/         serverovy kontext, pouze pro serverove komponenty a actions
-  db/             pripojeni, migrace, definice entit
-  server/repo/    repository vrstva - jediny pristup k datum
+  lib/
+    domain/       typy entit a ciste obchodni vypocty (sklad, finance, sestavy)
+    format.ts     formatovani meny, cisel, procent a dat pro UI
+  server/
+    repo/         repository vrstva - jediny pristup k datum
 docs/             tato dokumentace
 ```
+
+Plánované složky, které zatím neexistují: `src/db/` (připojení a migrace po rozhodnutí
+persistence) a `src/server/actions.ts` (serverové akce, až bude co zapisovat).
 
 ## Klíčová rozhodnutí
 
@@ -67,6 +72,24 @@ Krátké záznamy ve formátu kontext / rozhodnutí / důsledky. Formální záz
 - **Rozhodnutí:** Alias `@/*` ukazuje do `src/*` (konfigurace v `tsconfig.json`, podporováno i runtime, takže se nepoužívají relativní importy přes `src`).
 - **Důsledky:** Všechny interní importy začínají `@/`. Alias je definovaný jen na jednom místě, proto se nesmí duplikovat v konfiguraci nástrojů.
 
+### Skupina rout `(app)` se společnou kostrou
+
+- **Kontext:** Aplikace potřebuje postranní menu a hlavičku ve všech obrazovkách, ale budoucí veřejný marketplace bude chtít jinou kostru.
+- **Rozhodnutí:** Routy aplikace jsou ve skupině `src/app/(app)/`, která má vlastní `layout.tsx` s komponentou `Kostra`. Skupina rout se v URL neobjeví. Kořenový layout řeší jen `html` a `body`.
+- **Důsledky:** Přidání veřejné skupiny rout s jiným layoutem neomezuje interní sekce. Aktivní položka menu se řeší na klientu přes `usePathname`, proto je `Navigace` klientská komponenta.
+
+### Dočasná datová vrstva v `src/server/repo/data.ts`
+
+- **Kontext:** Persistence není rozhodnuta, ale bez dat se nedá navrhnout ani otestovat rozhraní.
+- **Rozhodnutí:** `src/server/repo/` vrací data z ukázkových konstant v `data.ts`. UI nesmí importovat `data.ts` přímo, jde přes funkce repozitáře.
+- **Důsledky:** Při zvolení persistence se mění jen `src/server/repo/`, stránky zůstávají. Data jsou statická a nejsou serializovatelná pro klientské komponenty — filtr skladu si je proto předává stránka jako propy.
+
+### Peněžní hodnoty jako celé haléře
+
+- **Kontext:** Ceny se sčítají, porovnávají a násobí procenty; float by generoval rozdíly v haléřích.
+- **Rozhodnutí:** Typ `Penize` je celé číslo v haléřích. Formátování na českou měnu dělá výhradně `formatCurrency` v `src/lib/format.ts`.
+- **Důsledky:** Procenta a poměry jsou výsledek dělení až v okamžiku zobrazení. Procentní sazební výpočty zaokrouhlují na celé haléře (`spocitatDph`).
+
 ## Datový model
 
 Návrh je konceptuální. Popisuje entity, jejich pole a vztahy; konkrétní implementace závisí na nerozhodnuté otázce persistence (viz níže). Každá nová entita musí být zapracována do tohoto oddílu a do [dokumentu funkce](funkce/_template.md), který ji zavádí.
@@ -83,6 +106,12 @@ Katalogový typ zboží, ne konkrétní kus.
 | `model`         | text            | Obchodní označení modelu |
 | `specifikace`   | strukturovaná   | Klíčové parametry dle typu komponenty |
 
+V kódu je `Component` sjednocený typ (diskriminovaný na `kategorie`), takže
+`specifikace` má u každé kategorie vlastní tvar — například procesor nese `socket` a `tdp`,
+grafická karta `prikonW` a `delkaMm`, základní deska `typRam` a počet slotů M.2. Bez toho
+by kontrola kompatibility sestav musela sahat na `any`. Tvar jednotlivých specifikací je v
+`src/lib/domain/types.ts`.
+
 ### Listing (nabídka konkrétního kusu)
 
 Nabídka, kterou prodávající vystaví, včetně stavu a ceny.
@@ -94,6 +123,7 @@ Nabídka, kterou prodávající vystaví, včetně stavu a ceny.
 | `prodejceId`     | vazba          | Odkaz na bazar nebo prodejce |
 | `stavHodnoceniId`| vazba          | Odkaz na stavové hodnocení, viz níže |
 | `cena`           | celé číslo v menší jednotce | Peněžní hodnota nabídky |
+| `nakupniCena`    | celé číslo v menší jednotce | Výkupní cena, ze které se počítá marže |
 | `popis`          | text           | Volný popis stavu, může být prázdný |
 | `dostupnost`     | enum           | Dostupné / rezervované / prodané |
 | `vytvorenoKdy`   | čas            | Časová razítka pro řazení a auditaci |
@@ -214,11 +244,14 @@ Order     N --- M Listing      (přes BuildItem)
 
 ## URL struktura rout
 
-Návrh, připravený pro použití s App Routerem. Skutečné routy vzniknou postupně podle [ROADMAP.md](../ROADMAP.md); konkrétní cestu zavádí dokument příslušné funkce.
+Návrh, připravený pro použití s App Routerem. Skutečné routy vzniknou postupně podle
+[ROADMAP.md](../ROADMAP.md); konkrétní cestu zavádí dokument příslušné funkce.
+
+### Veřejná část (plánováno)
 
 | Roura               | Obsah |
 | ------------------- | ----- |
-| `/`                 | Vstupní strana s přehledem kategorií a sestav |
+| `/`                 | Vstupní stránka s přehledem kategorií a sestav |
 | `/katalog`          | Výpis dostupných kusů, filtry dle kategorie a stavu |
 | `/katalog/[id]`     | Detail jednoho kusu včetně stavového hodnocení a důkazů |
 | `/repas`            | Přehled hodnocených kusů a jejich historie zásahů |
@@ -228,7 +261,20 @@ Návrh, připravený pro použití s App Routerem. Skutečné routy vzniknou pos
 | `/pc/[kategorie]/[id]` | Detail sestavy a jednotlivých položek |
 | `/prodejce`         | Profil bazaru nebo prodejce |
 | `/moje-ucet`        | Přihlášení, objednávky, nabídky |
-| `/admin`            | Interní nástroje pro správu (rozsah není rozhodnut) |
+
+### Vnitřní aplikace (existuje, viz [dokument funkce 002](funkce/002-zakladni-sablona-aplikace.md))
+
+| Routa         | Obsah |
+| ------------- | ----- |
+| `/nastenka`   | Souhrn skladu, financí, objednávek, sestav a posledních zásahů |
+| `/sklad`      | Katalog kusů s filtrem, marží a rozpadem podle stavu |
+| `/finance`    | Příjmy, výdaje, DPH a přehled po měsících |
+| `/sestavy`    | Sestavy, kontrola kompatibility a porovnání s rozpočtem |
+| `/nastaveni`  | Obchod, rozpočty kategorií, DPH a skladová rezerva (jen pro čtení) |
+
+`/` dnes přesměrovává na `/nastenka`. Kam umístit veřejnou část, až přijde, je otevřená
+otázka: buď se `/` stane veřejnou stránkou a vnitřní aplikace se přesune na prefix, nebo
+zůstanou obě vedle sebe. Viz [Otevřené otázky architektury](#otevřené-otázky-architektury).
 
 ## Persistence
 
@@ -265,8 +311,12 @@ Otevřené otázky k persistence:
 ## Otevřené otázky architektury
 
 - Který mechanismus přihlášení a rolí použijeme?
-- Je potřeba podpora více jazyků rozhraní, nebo začínáme pouze česky?
+- Je potřeba podpora více jazyků rozhraní, nebo začínáme pouze česky? — rozhraní je nyní
+  česky a `<html lang="cs">`, ale texty nejsou přeložené, takže plné zvládnutí dalšího
+  jazyka je stále otevřené.
 - Bude potřeba řešit více trhů nebo měn? (Ovlivňuje zobrazení cen.)
 - Která část platformy řeší notifikace a jak?
+- Kam přijde veřejný marketplace, až bude hotový: na `/` s vnitřní aplikací na prefixu,
+  nebo vedle? Dnes `/` přesměrovává na `/nastenka`.
 
 Poslední aktualizace: 2026-09-29

@@ -36,9 +36,23 @@ Aplikace běží na http://localhost:3000.
 
 ```
 src/
-  app/          routy (App Router)
-  lib/          sdílená logika a utility
+  app/            routy (App Router); (app)/ je skupina rout se společnou kostrou
+  components/     složené UI komponenty
+  lib/
+    domain/       typy entit a čisté obchodní výpočty
+    format.ts     formátování měny, čísel, procent a dat
+  server/repo/    jediný přístup k datům (zatím ukázková data v data.ts)
 ```
+
+## Sekce aplikace
+
+| Routa        | Obsah                                                       |
+| ------------ | ----------------------------------------------------------- |
+| `/nastenka` | Souhrn skladu, financí, objednávek a sestav                |
+| `/sklad`     | Katalog kusů s filtrem, marží a rozpadem podle stavu       |
+| `/finance`   | Příjmy, výdaje, DPH a přehled po měsících                 |
+| `/sestavy`   | Sestavy s kontrolou kompatibility a porovnáním s rozpočtem |
+| `/nastaveni` | Obchod, rozpočty kategorií, DPH (zatím jen pro čtení)      |
 
 ## Konvence
 
@@ -58,6 +72,7 @@ Veškerá dokumentace je v [`docs/`](docs/README.md), plán a priority prací v 
 | [docs/vize.md](docs/vize.md)               | Produktová vize, uživatelské typy, pilíře, cenové kategorie  |
 | [docs/architektura.md](docs/architektura.md) | Vrstvy, klíčová rozhodnutí, datový model, routy, bezpečnost   |
 | [docs/funkce/_template.md](docs/funkce/_template.md) | Šablona, podle níž vzniká dokument každé funkce     |
+| [docs/funkce/002-zakladni-sablona-aplikace.md](docs/funkce/002-zakladni-sablona-aplikace.md) | Popis vnitřní šablony aplikace (nástěnka, sklad, finance, sestavy, nastavení) |
 | [ROADMAP.md](ROADMAP.md)                   | Fáze, priority a definice hotovosti                           |
 
 ## Nasazení

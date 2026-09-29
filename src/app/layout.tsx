@@ -14,16 +14,17 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "FLIPCOREAPP",
-  description: "Základ SaaS aplikace — zatím bez konkrétního zaměření.",
+  description:
+    "Platforma pro vyhledávání a nákup bazarových PC komponent, jejich repas a sestavení hotového počítače ve třech cenových kategoriích.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="cs"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }
