@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { desc, eq } from "drizzle-orm";
 
 import { databaze, schema } from "@/db/client";
@@ -243,6 +245,86 @@ export function getSestavy(): SestavaSCenou[] {
     };
     return { ...sestava, zhodnoceni: zhodnotitSestavu(sestava, mapaKomponentProKus()) };
   });
+}
+
+export interface VstupVykupu {
+  componentId: ID;
+  prodejce:
+    | { rezim: "existujici"; prodejceId: ID }
+    | { rezim: "novy"; nazev: string; typ: Seller["typ"] };
+  nakupniCena: number;
+  datumVykupu: string;
+}
+
+/**
+ * Chyba, jejíž text je bezpečné ukázat provozovateli — nejde o selhání databáze,
+ * ale o rozpor mezi formulářem a stavem dat (například ID, které už neexistuje).
+ */
+export class ChybaZapisu extends Error {}
+
+/** Nové ID kusu a prodejce generujeme na serveru; klient ID neposílá. */
+function noveId(prefix: string): string {
+  return `${prefix}_${randomUUID().slice(0, 8)}`;
+}
+
+/**
+ * Založí výkup: kus v stavu `vykoupeno` bez prodejní ceny a bez hodnocení.
+ * Nový prodejce a kus vznikají v jedné transakci — jedno bez druhého by
+ * zanechalo v databázi odkaz na nic.
+ *
+ * Cizí klíče se zde ověřují znovu, i když je ověřil formulář: klient mohl
+ * poslat ID, které ve chvíli zápisu neexistuje.
+ */
+export function zalozitVykup(vstup: VstupVykupu): Kus {
+  const db = databaze();
+
+  const komponenta = db
+    .select()
+    .from(schema.komponenty)
+    .where(eq(schema.komponenty.id, vstup.componentId))
+    .get();
+  if (!komponenta) {
+    throw new ChybaZapisu("Vybraná komponenta v katalogu neexistuje.");
+  }
+
+  const kus = db.transaction((tx) => {
+    let prodejceId: ID;
+    if (vstup.prodejce.rezim === "novy") {
+      prodejceId = noveId("sel");
+      tx.insert(schema.prodejci)
+        .values({ id: prodejceId, nazev: vstup.prodejce.nazev, typ: vstup.prodejce.typ })
+        .run();
+    } else {
+      const existujici = tx
+        .select()
+        .from(schema.prodejci)
+        .where(eq(schema.prodejci.id, vstup.prodejce.prodejceId))
+        .get();
+      if (!existujici) {
+        throw new ChybaZapisu("Vybraný prodejce neexistuje.");
+      }
+      prodejceId = existujici.id;
+    }
+
+    const id = noveId("kus");
+    tx.insert(schema.kusy)
+      .values({
+        id,
+        componentId: vstup.componentId,
+        prodejceId,
+        // Nově vykoupený kus se ještě neprodejí a nemá hodnocení.
+        stav: "vykoupeno",
+        nakupniCena: vstup.nakupniCena,
+        prodejniCena: null,
+        datumVykupu: vstup.datumVykupu,
+        vytvorenoKdy: new Date().toISOString(),
+      })
+      .run();
+
+    return tx.select().from(schema.kusy).where(eq(schema.kusy.id, id)).get()!;
+  });
+
+  return naKus(kus);
 }
 
 export function getKus(id: ID): Kus | undefined {

@@ -10,6 +10,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.join(rootDir, "src"),
+      // Mimo Next.js by `server-only` skončil výjimkou. Testy potřebují volat
+      // repozitář přímo, proto ho v testech nahrazuje prázdný modul.
+      "server-only": path.join(rootDir, "src/test/stub-server-only.ts"),
     },
   },
   test: {

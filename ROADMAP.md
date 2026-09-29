@@ -92,7 +92,11 @@ Interní aplikace (provozní nástroj) — běží nad databází, viz
       `pnpm db:seed`.
 - [x] Vnitřní aplikace se vykresluje dynamicky, aby se na obrazovkách neponechaly data
       z okamžiku buildu.
-- [ ] Ukládání nastavení a formuláře pro zápis dat (blokuje auth).
+- [x] Evidence výkupu — první zápis: serverová akce `zapsatVykup`, validace Zod na
+      serveru i klientu, formulář na `/sklad` s chybami u jednotlivých polí, viz
+      [dokument funkce 004](docs/funkce/004-evidence-vykupu.md).
+- [ ] Ukládání nastavení, editace a mazání kusů, zápis nové katalogové komponenty
+      (blokuje auth).
 
 Veřejná část — plánováno, navazuje na Fázi 2:
 

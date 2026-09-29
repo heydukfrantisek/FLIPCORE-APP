@@ -32,6 +32,7 @@ Konkrétní číslované dokumenty funkce:
 | [001-repas-a-stavove-hodnoceni](funkce/001-repas-a-stavove-hodnoceni.md) | repas | Plánováno |
 | [002-zakladni-sablona-aplikace](funkce/002-zakladni-sablona-aplikace.md) | infrastruktura | Náhled |
 | [003-kus-a-persistence](funkce/003-kus-a-persistence.md) | infrastruktura | Rozpracováno |
+| [004-evidence-vykupu](funkce/004-evidence-vykupu.md) | sklad | Rozpracováno |
 
 ## Jak dokumentaci aktualizovat
 

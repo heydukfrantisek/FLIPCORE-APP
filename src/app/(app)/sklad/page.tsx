@@ -1,11 +1,12 @@
 import { FiltrSkladu } from "@/components/filtr-skladu";
+import { FormularVykupu } from "@/components/formular-vykupu";
 import { NadpisStranky } from "@/components/nadpis-stranky";
 import { Panel, PanelBody, PanelHeader } from "@/components/panel";
 import { StatKarta } from "@/components/stat-karta";
 import { Tabulka, TabulkaBunka, TabulkaHlavicka, TabulkaRadek } from "@/components/tabulka";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { STUPEN_POPIS } from "@/lib/domain/slovnik";
-import { getSklad } from "@/server/repo";
+import { getComponenty, getProdejci, getSklad } from "@/server/repo";
 
 export const metadata = {
   title: "Sklad | FLIPCORE",
@@ -13,6 +14,8 @@ export const metadata = {
 
 export default function SkladPage() {
   const { zaznamy, prehled } = getSklad();
+  const komponenty = getComponenty();
+  const prodejci = getProdejci();
 
   return (
     <>
@@ -70,6 +73,16 @@ export default function SkladPage() {
               ))}
             </tbody>
           </Tabulka>
+        </PanelBody>
+      </Panel>
+
+      <Panel>
+        <PanelHeader
+          titulek="Zapsat výkup"
+          popis="Nový kus vznikne ve stavu „vykoupeno“. Prodejní cena a hodnocení se doplní po repasi."
+        />
+        <PanelBody>
+          <FormularVykupu komponenty={komponenty} prodejci={prodejci} />
         </PanelBody>
       </Panel>
 

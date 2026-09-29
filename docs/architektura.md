@@ -24,13 +24,12 @@ src/
   lib/
     domain/       typy entit a ciste obchodni vypocty (sklad, finance, sestavy)
     format.ts     formatovani meny, cisel, procent a dat pro UI
+  db/            schema, klient a seed - nikdy se neimportuje z klientske komponenty
   server/
+    actions/     serverove akce - jediny zpusob, jak se da zapisovat
     repo/         repository vrstva - jediny pristup k datum
 docs/             tato dokumentace
 ```
-
-Plánované složky, které zatím neexistují: `src/db/` (připojení a migrace po rozhodnutí
-persistence) a `src/server/actions.ts` (serverové akce, až bude co zapisovat).
 
 ## Klíčová rozhodnutí
 
@@ -83,6 +82,18 @@ Krátké záznamy ve formátu kontext / rozhodnutí / důsledky. Formální záz
 - **Kontext:** Rozhraní potřebovalo data dřív, než byla persistence rozhodnuta.
 - **Rozhodnutí:** `src/server/repo/` je jediné místo, kde se dotazuje na data. UI nesmí importovat `src/db/` ani `src/server/repo/` přímo, jde přes funkce repozitáře. Klient databáze je označen `server-only`, takže chybný import do klientské komponenty spadne už při sestavení.
 - **Důsledky:** Změna zdroje dat (například přechod na Postgres) se dotkne jen `src/db/` a `src/server/repo/`; stránky zůstanou. Data se na rozdíl od dřívějšího stavu mění za běhu, proto se vnitřní aplikace vykresluje dynamicky a filtr skladu si data dostává jako propy.
+
+### Zápis dat pouze přes serverovou akci
+
+- **Kontext:** Klientská komponenta běží v prohlížeči a její vstup je nedůvěryhodný. Formulář přitom musí být ovládaný ze strany provozovatele.
+- **Rozhodnutí:** Každý zápis jde přes serverovou akci v `src/server/actions/`, která dostává `FormData`, znovu ho validuje schématem ze Zod a teprve potom volá zápisovou funkci v `src/server/repo/`. Klient importuje jen typy a validační schémata z `src/lib/domain/`, nikdy `src/server/repo/` ani `src/db/`.
+- **Důsledky:** Očekávané chyby (chybné pole, rozpor s daty) se vracejí do formuláře jako **návratová hodnota**, ne výjimka — rozbitý formulář nesmí shodit stránku. Neočekávané chyby databáze se do UI nepropagují, aby neprozradily detaily o instalaci. Klient navíc může mít vlastní validaci pro pohodlí, ale zárukou je až ta serverová. Po zápisu se volá `revalidatePath`, aby se překreslily obrazovky, jejichž data se změnila.
+
+### Ceny zadává provozovatel, ne klient
+
+- **Kontext:** Výkupní cena je částka, kterou provozovatel sám zaplatil prodávajícímu. Nemá kde jinde vzniknout a klient ji nemůže znát.
+- **Rozhodnutí:** Výkupní cena se zadává textem v korunách a na serveru se převádí do celých haléřů. Převod sníší české zadávání: mezery a tečku jako oddělovač tisíců, čárku jako desetinnou část. Server převod opakuje, i když má klient `type="text"`.
+- **Důsledky:** Převod je čistá funkce v `src/lib/domain/vykup.ts`, takže se testuje bez serveru. Toto je výjimka z pravidla „cena se nikdy nepřebírá od klienta", které jinak platí pro veřejný košík — viz [Bezpečnost](#bezpečnost-a-tajné-env-proměnné).
 
 ### Peněžní hodnoty jako celé haléře
 
