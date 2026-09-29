@@ -27,6 +27,15 @@ Níže je rozhodnutá splnitelná náhrada.
    (název, typ, kontakt), bez přihlašování. Auth se neřeší, dokud nepůjde o veřejný obchod.
 5. **Cíl dalších iterací: provozuschopná vnitřní aplikace** — výkup → repas a ohodnocení
    → vystavení kusu. Veřejný katalog až poté.
+6. **Databáze po I1 startuje prázdná.** Ukázková data se naplní jen výslovným příkazem
+   `pnpm db:seed` pro vývoj a ukázky. Režim demo/ostré se nepřepíná přepínačem — to by
+   ukázková data míchalo se skutečnými kusy.
+
+### Co to znamená pro původní instrukci „necháme vše ukázkové"
+
+Ta instrukce platila pro read-only fázi, která skončila. Formálně ji nahrazuje nový ADR
+místo ADR 001, a to až v I1, kde se zavádí persistence. Do té doby se na ní nic nemění
+a `src/server/repo/data.ts` zůstává zdrojem dat.
 
 ## Důležité závěry z dokumentace
 
@@ -75,11 +84,15 @@ Každá iterace je jeden svislý řez, ideálně velikosti S/M. Větší se rozd
   `src/lib/format.ts`.
 - Klientská komponenta neimportuje `src/server/repo/`.
 - `docs/funkce/NNN-*.md` se nepíše až po implementaci.
+- **Ukázková data se nikdy nesmísí se skutečnými.** Po I1 je zdroj dat buď seed
+  (vývoj), nebo zápis provozovatele (reál). Neexistuje režim, který by je míchal.
 
 ## Pořadí iterací
 
 ### I1 — Entita Kus a persistence (M)
 - `pnpm add drizzle-orm better-sqlite3 zod`, `pnpm add -D drizzle-kit @types/better-sqlite3`.
+- Skripty v `package.json`: `db:generate` (drizzle-kit generate), `db:migrate`,
+  `db:seed`. `check` doplnit o `db:migrate`, aby CI ověřilo, že migrace sedí se schématem.
 - `src/db/schema.ts` (tabulky `component`, `kus`, `prodejce`, `condition_grade`,
   `repair_ticket`, `test_evidence`, `build`, `build_item`, `transakce`, `nastaveni`),
   `drizzle.config.ts`, migrace.
@@ -91,11 +104,13 @@ Každá iterace je jeden svislý řez, ideálně velikosti S/M. Větší se rozd
   `MapaKomponent` v `sestavy.ts` mapuje `kusId` → `Component`.
   Dotčené: `types.ts`, `sklad.ts`(+test), `sestavy.ts`(+test), `data.ts`,
   `server/repo/index.ts`, `filtr-skladu.tsx`, 4 stránky.
-- `src/server/repo/` přepsat na dotazy; `data.ts` nahradit **seed skriptem**, aby šlo
-  znovu naplnit ukázková data a porovnat výstup.
+- `src/server/repo/` přepsat na dotazy; `data.ts` přesunout do `src/db/seed.ts` jako
+  **samostatný příkaz `pnpm db:seed`**, který naplní dnešní ukázková data. Aplikace
+  spuštěná bez seedu musí fungovat a ukázat prázdné stavy.
 - Nahradit ADR 001 novým záznamem o persistence; doplnit upřesnění pravidla o cenách
   do `docs/architektura.md`.
-- Hotovo, když: `pnpm check` zelené, všechny dotazy jdou do DB, seed reprodukuje dnešní data.
+- Hotovo, když: `pnpm check` zelené, všechny dotazy jdou do DB, `pnpm db:seed` naplní
+  dnešní data, **a prázdná databáze zobrazí prázdné stavy bez pádu**.
 
 ### I2 — Evidence výkupu, první zápis (M)
 - Server action `zapsatVykup` + schéma vstupu ve Zod; chyby formuláře se vracejí do UI.
@@ -131,6 +146,9 @@ Veřejný katalog, košík, platby, přihlášení a role, více bazarů s účt
 
 - **SQLite má jednoho zapisovatele.** Rezervace více kusů v jedné objednávce později
   narazí. Je to přijaté riziko: je to i důvod, proč je SQLite dočasné.
+- **Prázdné stavy dosud nebyly reálně prověřené.** Dodnes je všechno naplněné ukázkovými
+  daty, takže `PrazdnyStav` nikdo neviděl v praxi. Po I1 budou vidět poprvé a možná
+  budou nepřesné — projít je v rámci I1, ne odložit.
 - **Refaktor `Listing` → `Kus` rozbije všech 65 testů a 4 stránky.** Proto je součástí I1
   a musí být hotový před nasazením schématu, ne po něm.
 - **Seed a ID kusů.** `MapaKomponent` v `sestavy.ts` se skládá z `listingId`; po přejmu
@@ -146,8 +164,8 @@ Po každé iteraci, bez výjimky:
 
 1. `pnpm check` — lint, typecheck, testy zelené.
 2. `pnpm build` — prochází, seznam rout odpovídá tomu, co je opravdu implementované.
-3. Ruční průchod v `pnpm dev` celé dotčené sekce včetně prázdného stavu a chybného vstupu;
-   zapsat kdo a kdy do `ROADMAP.md`.
+3. Ruční průchod v `pnpm dev` celé dotčené sekce **dvakrát**: nad databází po
+   `pnpm db:seed` a nad prázdnou databází; zapsat kdo a kdy do `ROADMAP.md`.
 4. `git status` — migrace a schéma commitnuté, `.env` ani soubor databáze ne.
 
 ## Otevřené otázky (rozhodnout uvedenou iteraci)
