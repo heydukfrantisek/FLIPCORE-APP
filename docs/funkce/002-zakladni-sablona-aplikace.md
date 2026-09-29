@@ -121,7 +121,9 @@ Nic se nesbírá.
 
 ## Následné kroky
 
-- Persistence (blokuje zápis dat), viz otevřená otázka v [architektuře](../architektura.md#persistence).
+- Persistence (blokuje zápis dat) — záměrně odloženo, viz
+  [ADR 001](../adr/001-ukazkova-data-do-dokonceni-funkci.md). Do té doby žádná nová
+  funkce nezapisuje data.
 - Přihlášení a role, aby šlo nastavení měnit a data chránit.
 - Detail kusu a detail sestavy jako další routy.
 - Rozhodnout, zda veřejný marketplace půjde do `/` (dnes tam je přesměrování na nástěnku)
@@ -135,9 +137,9 @@ Nic se nesbírá.
 - [x] `docs/README.md` obsahuje řádek s tímto dokumentem
 - [x] `docs/architektura.md` aktualizovaný — vznikly nové routy, složka `src/components` a datová vrstva
 - [x] `ROADMAP.md` aktualizovaný
-- [ ] Důležité technické rozhodnutí zapsáno jako ADR v `docs/adr/` — rozhodnutí jsou
-      shrnuta v [architektuře](../architektura.md#klíčová-rozhodnutí), formální záznamy
-      v `docs/adr/` zatím nejsou založené
+- [x] Důležité technické rozhodnutí zapsáno jako ADR v `docs/adr/` —
+      [ADR 001](../adr/001-ukazkova-data-do-dokonceni-funkci.md) popisuje, proč aplikace
+      běží na ukázkových datech a proč se persistence zatím nezavádí
 - [x] `pnpm check` prochází (lint, typecheck, testy)
 - [x] Patička `Poslední aktualizace: YYYY-MM-DD` odpovídá dnešnímu datu
 

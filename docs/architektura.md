@@ -280,6 +280,12 @@ zůstanou obě vedle sebe. Viz [Otevřené otázky architektury](#otevřené-ot�
 
 Datová persistence není rozhodnutá. Repo záměrně neobsahuje žádný výběr databáze ani klienta, aby se nerozhodlo předtím, než je známo, jaké dotazy a objemy budeme potřebovat.
 
+Aplikace proto běží na ukázkových datech v `src/server/repo/data.ts`. Je to záměrné
+rozhodnutí, ne nedokončená práce — viz [ADR 001](adr/001-ukazkova-data-do-dokonceni-funkci.md).
+Dokud ADR 001 platí, jsou všechny strany read-only a **žádná nová funkce nesmí
+obsahovat zápis dat**. Persistence se zavádí v okamžiku, kdy je hotová první funkce
+vyžadující zápis a je rozhodnuto, jaká databáze se použije.
+
 Následující je plánovaný model, ne implementace:
 
 - Repozitář vystavuje entity jako objekty, veškerý přístup k datům jde přes `src/server/repo/`.

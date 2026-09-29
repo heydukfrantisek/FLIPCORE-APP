@@ -38,7 +38,8 @@ Obsahuje entity `User`, `Component`, `Listing`, `ConditionGrade`, `RepairTicket`
 
 ### Data
 
-- [ ] Zvolit ORM a databázi; rozhodnutí zapiš do `docs/` (viz otevřené otázky).
+- [ ] Zvolit ORM a databázi; rozhodnutí zapiš jako ADR v `docs/adr/`. Odloženo do
+      dokončení funkcí, viz [ADR 001](docs/adr/001-ukazkova-data-do-dokonceni-funkci.md).
 - [ ] Schéma a migrace pro `User`, `Component`, `Listing`, `ConditionGrade`, `RepairTicket`,
       `Build`, `BuildItem`.
 - [ ] `Component` jako katalogová entita (výrobce, model, kategorie: CPU/GPU/RAM/SSD/HDD/
@@ -71,7 +72,9 @@ Interní aplikace (provozní nástroj) — hotovo jako náhled nad ukázkovými 
 - [x] Formátovací utility v `src/lib/format.ts` (cena, číslo, procento, datum).
 - [x] Obchodní výpočty v `src/lib/domain/` (marže, přehled skladu, DPH, kompatibilita
       sestav) s testy.
-- [ ] Dočasnou datovou vrstvu `src/server/repo/data.ts` nahradit skutečnou persistence.
+- [ ] Dočasnou datovou vrstvu `src/server/repo/data.ts` nahradit skutečnou persistence
+      — až bude hotová první funkce vyžadující zápis, viz
+      [ADR 001](docs/adr/001-ukazkova-data-do-dokonceni-funkci.md).
 - [ ] Ukládání nastavení a formuláře pro zápis dat (blokuje auth).
 
 Veřejná část — plánováno, navazuje na Fázi 2:
