@@ -7,12 +7,13 @@ import { PrazdnyStav } from "@/components/prazdny-stav";
 import { Tabulka, TabulkaBunka, TabulkaHlavicka, TabulkaRadek } from "@/components/tabulka";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import {
-  DOSTUPNOST_POPIS,
   KATEGORIE_POPIS,
   PORADI_KATEGORII,
+  PORADI_STAVU_KUSU,
+  STAV_KUSU_POPIS,
 } from "@/lib/domain/slovnik";
 import { filtrovatSklad, raditSklad, spocitatMarzi, spocitatMarziProcenta } from "@/lib/domain/sklad";
-import type { Dostupnost, ListingZDetailem, StupenStavu } from "@/lib/domain/types";
+import type { KusZDetailem, StavKusu, StupenStavu } from "@/lib/domain/types";
 
 const RAZENI: Array<{ hodnota: "cena-asc" | "cena-desc" | "stav" | "novejsi"; popis: string }> = [
   { hodnota: "novejsi", popis: "Nejnovější" },
@@ -41,22 +42,22 @@ function odstinStavu(stupen: StupenStavu): "success" | "info" | "warning" | "dan
  * předala. Pravidla filtru nejsou v této komponentě — pocházejí z `src/lib`,
  * aby se neopakovala na jiném místě.
  */
-export function FiltrSkladu({ zaznamy }: { zaznamy: ListingZDetailem[] }) {
+export function FiltrSkladu({ zaznamy }: { zaznamy: KusZDetailem[] }) {
   const [hledani, setHledani] = useState("");
   const [kategorie, setKategorie] = useState<string>("");
-  const [dostupnost, setDostupnost] = useState<string>("");
+  const [stavKusu, setStavKusu] = useState<string>("");
   const [stupen, setStupen] = useState<string>("");
   const [razeni, setRazeni] = useState<(typeof RAZENI)[number]["hodnota"]>("novejsi");
 
   const vysledky = useMemo(() => {
     const filtrovane = filtrovatSklad(zaznamy, {
       hledani,
-      kategorie: kategorie ? (kategorie as ListingZDetailem["component"]["kategorie"]) : undefined,
-      dostupnost: dostupnost ? (dostupnost as Dostupnost) : undefined,
+      kategorie: kategorie ? (kategorie as KusZDetailem["component"]["kategorie"]) : undefined,
+      stav: stavKusu ? (stavKusu as StavKusu) : undefined,
       stupen: stupen ? (stupen as StupenStavu) : undefined,
     });
     return raditSklad(filtrovane, razeni);
-  }, [zaznamy, hledani, kategorie, dostupnost, stupen, razeni]);
+  }, [zaznamy, hledani, kategorie, stavKusu, stupen, razeni]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -89,23 +90,23 @@ export function FiltrSkladu({ zaznamy }: { zaznamy: ListingZDetailem[] }) {
         </label>
 
         <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Dostupnost
+          Stav kusu
           <select
-            value={dostupnost}
-            onChange={(udalost) => setDostupnost(udalost.target.value)}
+            value={stavKusu}
+            onChange={(udalost) => setStavKusu(udalost.target.value)}
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
           >
             <option value="">Všechny</option>
-            {Object.entries(DOSTUPNOST_POPIS).map(([hodnota, popis]) => (
+            {PORADI_STAVU_KUSU.map((hodnota) => (
               <option key={hodnota} value={hodnota}>
-                {popis}
+                {STAV_KUSU_POPIS[hodnota]}
               </option>
             ))}
           </select>
         </label>
 
         <label className="flex flex-col gap-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Stav
+          Hodnocení
           <select
             value={stupen}
             onChange={(udalost) => setStupen(udalost.target.value)}
@@ -138,8 +139,18 @@ export function FiltrSkladu({ zaznamy }: { zaznamy: ListingZDetailem[] }) {
 
       {vysledky.length === 0 ? (
         <PrazdnyStav
-          titulek="Žádné kusy neodpovídají filtru"
-          popis="Zkuste zmírnit filtry nebo hledat jiný výraz."
+          // Prázdný sklad a prázdný výsledek filtru jsou dvě různé situace:
+          // v prvním případě není co filtrovat, ve druhém je filtr příliš úzký.
+          titulek={
+            zaznamy.length === 0
+              ? "Sklad je zatím prázdný"
+              : "Žádné kusy neodpovídají filtru"
+          }
+          popis={
+            zaznamy.length === 0
+              ? "První kus se zobrazí tady po zapsání výkupu."
+              : "Zkuste zmírnit filtry nebo hledat jiný výraz."
+          }
         />
       ) : (
         <Tabulka>
@@ -155,10 +166,10 @@ export function FiltrSkladu({ zaznamy }: { zaznamy: ListingZDetailem[] }) {
                 Prodejce
               </th>
               <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Stav
+                Hodnocení
               </th>
               <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Dostupnost
+                Stav kusu
               </th>
               <th scope="col" className="px-5 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 Výkup
@@ -173,29 +184,29 @@ export function FiltrSkladu({ zaznamy }: { zaznamy: ListingZDetailem[] }) {
           </TabulkaHlavicka>
           <tbody>
             {vysledky.map((zaznam) => (
-              <TabulkaRadek key={zaznam.listing.id}>
+              <TabulkaRadek key={zaznam.kus.id}>
                 <TabulkaBunka hlavni>
                   {zaznam.component.vyrobce} {zaznam.component.model}
                   <span className="block text-xs font-normal text-zinc-400 dark:text-zinc-500">
-                    {formatDate(zaznam.listing.vytvorenoKdy)}
+                    {formatDate(zaznam.kus.vytvorenoKdy)}
                   </span>
                 </TabulkaBunka>
                 <TabulkaBunka>{KATEGORIE_POPIS[zaznam.component.kategorie]}</TabulkaBunka>
                 <TabulkaBunka>{zaznam.prodejce.nazev}</TabulkaBunka>
                 <TabulkaBunka>
-                  <Badge odstin={odstinStavu(zaznam.stav.stupen)}>{zaznam.stav.stupen}</Badge>
+                  {zaznam.stav ? <Badge odstin={odstinStavu(zaznam.stav.stupen)}>{zaznam.stav.stupen}</Badge> : "—"}
                 </TabulkaBunka>
-                <TabulkaBunka>{DOSTUPNOST_POPIS[zaznam.listing.dostupnost]}</TabulkaBunka>
+                <TabulkaBunka>{STAV_KUSU_POPIS[zaznam.kus.stav]}</TabulkaBunka>
                 <TabulkaBunka className="text-right">
-                  {formatCurrency(zaznam.listing.nakupniCena)}
+                  {formatCurrency(zaznam.kus.nakupniCena)}
                 </TabulkaBunka>
                 <TabulkaBunka className="text-right" hlavni>
-                  {formatCurrency(zaznam.listing.cena)}
+                  {zaznam.kus.prodejniCena === null ? "—" : formatCurrency(zaznam.kus.prodejniCena)}
                 </TabulkaBunka>
                 <TabulkaBunka className="text-right">
-                  <span className="block">{formatCurrency(spocitatMarzi(zaznam.listing))}</span>
+                  <span className="block">{formatCurrency(spocitatMarzi(zaznam.kus))}</span>
                   <span className="block text-xs text-zinc-400 dark:text-zinc-500">
-                    {formatPercent(spocitatMarziProcenta(zaznam.listing))}
+                    {formatPercent(spocitatMarziProcenta(zaznam.kus))}
                   </span>
                 </TabulkaBunka>
               </TabulkaRadek>

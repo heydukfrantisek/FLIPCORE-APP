@@ -63,7 +63,7 @@ Pravidla škály:
 Konceptuální entity jsou definované v [architektuře](../architektura.md#datový-model); tento oddíl je záměrně stručný odkaz místo duplicitního výpisu polí.
 
 - Nové entity: `ConditionGrade` (stupeň, hodnotitel, důkazy, čas), `RepairTicket` (zásah na kus), `TestEvidence` (výsledek testu a příloha).
-- Změny existujících entit: `Listing` získá vazbu na stavové hodnocení. Vazba je 1:N, aby šlo hodnocení v průběhu času revidovat a zachovat historii.
+- Změny existujících entit: `Kus` získá vazbu na stavové hodnocení. Vazba je 1:N, aby šlo hodnocení v průběhu času revidovat a zachovat historii.
 - Migrace: není, datová vrstva zatím neexistuje.
 
 ## API/změny v kódu

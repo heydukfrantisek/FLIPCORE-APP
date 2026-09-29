@@ -32,7 +32,7 @@ export interface ZhodnoceniSestavy {
   doporucenyVykonZdrojeW: number;
 }
 
-/** Mapuje ID kusu (nabídky) na katalogovou komponentu, ke které ten kus patří. */
+/** Mapuje ID kusu na katalogovou komponentu, ke které ten kus patří. */
 export type MapaKomponent = Map<ID, Component>;
 
 type KomponentaKategorie<K extends Component["kategorie"]> = Extract<Component, { kategorie: K }>;
@@ -43,10 +43,10 @@ function najdi<K extends Component["kategorie"]>(
   kategorie: K,
 ): KomponentaKategorie<K> | null {
   const polozka = sestava.polozky.find((polozka) => polozka.pozice === kategorie);
-  if (!polozka || !polozka.listingId) {
+  if (!polozka || !polozka.kusId) {
     return null;
   }
-  const component = komponenty.get(polozka.listingId);
+  const component = komponenty.get(polozka.kusId);
   if (!component || component.kategorie !== kategorie) {
     return null;
   }
@@ -101,7 +101,7 @@ export function zhodnotitSestavu(sestava: Build, komponenty: MapaKomponent): Zho
   }
 
   for (const polozka of sestava.polozky) {
-    if (polozka.listingId && !komponenty.has(polozka.listingId)) {
+    if (polozka.kusId && !komponenty.has(polozka.kusId)) {
       problemy.push(`Komponenta ${polozka.nazev} už v katalogu není.`);
     }
   }
@@ -183,9 +183,9 @@ export function zhodnotitSestavu(sestava: Build, komponenty: MapaKomponent): Zho
 
 function jeM2(sestava: Build, komponenty: MapaKomponent, polozkaId: string): boolean {
   const polozka = sestava.polozky.find((polozka) => polozka.id === polozkaId);
-  if (!polozka || !polozka.listingId) {
+  if (!polozka || !polozka.kusId) {
     return false;
   }
-  const component = komponenty.get(polozka.listingId);
+  const component = komponenty.get(polozka.kusId);
   return component !== undefined && component.kategorie === "ssd" && component.specifikace.typ === "M.2";
 }

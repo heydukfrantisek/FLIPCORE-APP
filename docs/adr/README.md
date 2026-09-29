@@ -52,15 +52,15 @@ aby šlo později vyhledat „co jsme se rozhodli udělat".
 | Číslo | Téma                              | Status    | Datum       | Soubor                       |
 | ----- | --------------------------------- | --------- | ----------- | ---------------------------- |
 | 000   | Základní stack                   | Přijato   | 2026-09-29 | inline šablona níže         |
-| 001   | Ukázková data do dokončení funkcí | Přijato   | 2026-09-29 | [001-ukazkova-data-do-dokonceni-funkci.md](001-ukazkova-data-do-dokonceni-funkci.md) |
-| 002   | Databáze a persistence            | Navrženo  |             | zatím nevytvořeno            |
+| 001   | Ukázková data do dokončení funkcí | Nahrazeno | 2026-09-29 | [001-ukazkova-data-do-dokonceni-funkci.md](001-ukazkova-data-do-dokonceni-funkci.md) |
+| 002   | SQLite a Drizzle pro ukázkovou funkci výkupu | Přijato | 2026-09-29 | [002-sqlite-a-drizzle-pro-ukazkove-funkce.md](002-sqlite-a-drizzle-pro-ukazkove-funkce.md) |
 | 003   | Přihlášení a model rolí           | Navrženo  |             | zatím nevytvořeno            |
 | 004   | Ukládání příloh testů            | Navrženo  |             | zatím nevytvořeno            |
 
-Řádky 002 až 004 odpovídají otevřeným otázkám v [architektuře](../architektura.md).
+Řádky 003 a 004 odpovídají otevřeným otázkám v [architektuře](../architektura.md).
 Zatím nevytvořený záznam vznikne v okamžiku, kdy bude otázka rozhodnuta, a řádek se
-doplní o odkaz na soubor. ADR 001 zatím určuje, že persistence se neřeší, dokud
-nebude hotová první funkce vyžadující zápis dat.
+doplní o odkaz na soubor. Otázka databáze a persistence byla rozhodnuta v ADR 002:
+SQLite přes Drizzle, prázdná databáze a demo data výhradně přes `pnpm db:seed`.
 
 ## 000: Základní stack
 

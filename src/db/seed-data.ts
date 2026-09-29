@@ -1,20 +1,43 @@
 import type {
   Build,
   Component,
-  ConditionGrade,
-  Listing,
   Nastaveni,
   Objednavka,
   RepairTicket,
   Seller,
+  StavKusu,
   TestEvidence,
   Transakce,
 } from "@/lib/domain/types";
 
+/** Hodnocení kusu, jak ho vkládá `src/db/seed.ts`. */
+export interface SeedHodnoceni {
+  id: string;
+  stupen: "A" | "B" | "C" | "D";
+  popis: string;
+  zhodnocenoKdy: string;
+}
+
 /**
- * Datová sada pro vývoj rozhraní. Nahrazuje databázi, dokud persistence není
- * rozhodnuta (viz otevřená otázka v `docs/architektura.md`). Leží výhradně
- * na serveru a je jediným zdrojem dat pro UI.
+ * Kus vkládaný do databáze. `hodnoceni` jsou ID hodnocení, která patří tomuto
+ * kusu; hodnocení tak zůstává vazba 1:N, jak vyžaduje `docs/funkce/001`.
+ */
+export interface SeedKus {
+  id: string;
+  componentId: string;
+  prodejceId: string;
+  stav: StavKusu;
+  nakupniCena: number;
+  prodejniCena: number | null;
+  datumVykupu: string;
+  vytvorenoKdy: string;
+  hodnoceni: string[];
+}
+
+/**
+ * Ukázková data pro `pnpm db:seed`. Sem se nikdy nezapisuje za běhu aplikace —
+ * databáze startuje prázdná a demo plní výhradně tento samostatný příkaz.
+ * Ceny jsou v celých haléřích.
  */
 export const KOMPONENTY: Component[] = [
   {
@@ -167,7 +190,7 @@ export const PRODEJCI: Seller[] = [
   { id: "sel-03", nazev: "Petr Novák", typ: "jednotlivec" },
 ];
 
-export const STAVY: ConditionGrade[] = [
+export const STAVY: SeedHodnoceni[] = [
   { id: "grd-01", stupen: "A", popis: "Plně funkční, bez kosmetických vad.", zhodnocenoKdy: "2026-08-02" },
   { id: "grd-02", stupen: "B", popis: "Funkční, drobné kosmetické vady.", zhodnocenoKdy: "2026-08-05" },
   { id: "grd-03", stupen: "C", popis: "Funkční, výkon mimo specifikaci, zapsáno v popisu.", zhodnocenoKdy: "2026-08-11" },
@@ -175,193 +198,212 @@ export const STAVY: ConditionGrade[] = [
   { id: "grd-05", stupen: "B", popis: "Funkční, kosmetické vady, původní balení chybí.", zhodnocenoKdy: "2026-09-01" },
 ];
 
-export const NABIDKY: Listing[] = [
+export const KUSY: SeedKus[] = [
+
   {
-    id: "lst-01",
+    id: "kus-01",
     componentId: "cmp-cpu-01",
     prodejceId: "sel-02",
-    stavHodnoceniId: "grd-01",
-    cena: 245000,
+    stav: "vystaveno",
     nakupniCena: 160000,
-    dostupnost: "dostupne",
+    prodejniCena: 245000,
+    datumVykupu: "2026-09-05",
     vytvorenoKdy: "2026-09-12",
+    hodnoceni: ["grd-01"],
   },
   {
-    id: "lst-02",
+    id: "kus-02",
     componentId: "cmp-cpu-02",
     prodejceId: "sel-01",
-    stavHodnoceniId: "grd-02",
-    cena: 135000,
+    stav: "vystaveno",
     nakupniCena: 90000,
-    dostupnost: "dostupne",
+    prodejniCena: 135000,
+    datumVykupu: "2026-09-07",
     vytvorenoKdy: "2026-09-14",
+    hodnoceni: ["grd-02"],
   },
   {
-    id: "lst-03",
+    id: "kus-03",
     componentId: "cmp-cpu-03",
     prodejceId: "sel-01",
-    stavHodnoceniId: "grd-03",
-    cena: 210000,
+    stav: "rezervovano",
     nakupniCena: 160000,
-    dostupnost: "rezervovano",
+    prodejniCena: 210000,
+    datumVykupu: "2026-09-01",
     vytvorenoKdy: "2026-09-08",
+    hodnoceni: ["grd-03"],
   },
   {
-    id: "lst-04",
+    id: "kus-04",
     componentId: "cmp-gpu-01",
     prodejceId: "sel-02",
-    stavHodnoceniId: "grd-02",
-    cena: 329000,
+    stav: "vystaveno",
     nakupniCena: 280000,
-    dostupnost: "dostupne",
+    prodejniCena: 329000,
+    datumVykupu: "2026-09-03",
     vytvorenoKdy: "2026-09-10",
+    hodnoceni: ["grd-02"],
   },
   {
-    id: "lst-05",
+    id: "kus-05",
     componentId: "cmp-gpu-02",
     prodejceId: "sel-01",
-    stavHodnoceniId: "grd-05",
-    cena: 415000,
+    stav: "vystaveno",
     nakupniCena: 330000,
-    dostupnost: "dostupne",
+    prodejniCena: 415000,
+    datumVykupu: "2026-09-08",
     vytvorenoKdy: "2026-09-15",
+    hodnoceni: ["grd-05"],
   },
   {
-    id: "lst-06",
+    id: "kus-06",
     componentId: "cmp-ram-01",
     prodejceId: "sel-03",
-    stavHodnoceniId: "grd-01",
-    cena: 39000,
+    stav: "vystaveno",
     nakupniCena: 22000,
-    dostupnost: "dostupne",
+    prodejniCena: 39000,
+    datumVykupu: "2026-09-09",
     vytvorenoKdy: "2026-09-16",
+    hodnoceni: ["grd-01"],
   },
   {
-    id: "lst-07",
+    id: "kus-07",
     componentId: "cmp-ram-02",
     prodejceId: "sel-02",
-    stavHodnoceniId: "grd-02",
-    cena: 79000,
+    stav: "vystaveno",
     nakupniCena: 65000,
-    dostupnost: "dostupne",
+    prodejniCena: 79000,
+    datumVykupu: "2026-09-02",
     vytvorenoKdy: "2026-09-09",
+    hodnoceni: ["grd-02"],
   },
   {
-    id: "lst-08",
+    id: "kus-08",
     componentId: "cmp-ssd-01",
     prodejceId: "sel-02",
-    stavHodnoceniId: "grd-01",
-    cena: 85000,
+    stav: "vystaveno",
     nakupniCena: 55000,
-    dostupnost: "dostupne",
+    prodejniCena: 85000,
+    datumVykupu: "2026-09-04",
     vytvorenoKdy: "2026-09-11",
+    hodnoceni: ["grd-01"],
   },
   {
-    id: "lst-09",
+    id: "kus-09",
     componentId: "cmp-ssd-02",
     prodejceId: "sel-03",
-    stavHodnoceniId: "grd-02",
-    cena: 21000,
+    stav: "vystaveno",
     nakupniCena: 12000,
-    dostupnost: "dostupne",
+    prodejniCena: 21000,
+    datumVykupu: "2026-09-06",
     vytvorenoKdy: "2026-09-13",
+    hodnoceni: ["grd-02"],
   },
   {
-    id: "lst-10",
+    id: "kus-10",
     componentId: "cmp-hdd-01",
     prodejceId: "sel-01",
-    stavHodnoceniId: "grd-04",
-    cena: 12000,
+    stav: "vystaveno",
     nakupniCena: 4000,
-    dostupnost: "dostupne",
+    prodejniCena: 12000,
+    datumVykupu: "2026-08-21",
     vytvorenoKdy: "2026-08-28",
+    hodnoceni: ["grd-04"],
   },
   {
-    id: "lst-11",
+    id: "kus-11",
     componentId: "cmp-mb-01",
     prodejceId: "sel-01",
-    stavHodnoceniId: "grd-02",
-    cena: 128000,
+    stav: "vystaveno",
     nakupniCena: 95000,
-    dostupnost: "dostupne",
+    prodejniCena: 128000,
+    datumVykupu: "2026-08-31",
     vytvorenoKdy: "2026-09-07",
+    hodnoceni: ["grd-02"],
   },
   {
-    id: "lst-12",
+    id: "kus-12",
     componentId: "cmp-mb-02",
     prodejceId: "sel-02",
-    stavHodnoceniId: "grd-01",
-    cena: 265000,
+    stav: "vystaveno",
     nakupniCena: 215000,
-    dostupnost: "dostupne",
+    prodejniCena: 265000,
+    datumVykupu: "2026-09-10",
     vytvorenoKdy: "2026-09-17",
+    hodnoceni: ["grd-01"],
   },
   {
-    id: "lst-13",
+    id: "kus-13",
     componentId: "cmp-psu-01",
     prodejceId: "sel-01",
-    stavHodnoceniId: "grd-03",
-    cena: 52000,
+    stav: "vystaveno",
     nakupniCena: 30000,
-    dostupnost: "dostupne",
+    prodejniCena: 52000,
+    datumVykupu: "2026-08-29",
     vytvorenoKdy: "2026-09-05",
+    hodnoceni: ["grd-03"],
   },
   {
-    id: "lst-14",
+    id: "kus-14",
     componentId: "cmp-psu-02",
     prodejceId: "sel-02",
-    stavHodnoceniId: "grd-01",
-    cena: 149000,
+    stav: "vystaveno",
     nakupniCena: 115000,
-    dostupnost: "dostupne",
+    prodejniCena: 149000,
+    datumVykupu: "2026-09-11",
     vytvorenoKdy: "2026-09-18",
+    hodnoceni: ["grd-01"],
   },
   {
-    id: "lst-15",
+    id: "kus-15",
     componentId: "cmp-chladic-01",
     prodejceId: "sel-03",
-    stavHodnoceniId: "grd-02",
-    cena: 12000,
+    stav: "vystaveno",
     nakupniCena: 5000,
-    dostupnost: "dostupne",
+    prodejniCena: 12000,
+    datumVykupu: "2026-08-30",
     vytvorenoKdy: "2026-09-06",
+    hodnoceni: ["grd-02"],
   },
   {
-    id: "lst-16",
+    id: "kus-16",
     componentId: "cmp-chladic-02",
     prodejceId: "sel-01",
-    stavHodnoceniId: "grd-01",
-    cena: 22000,
+    stav: "vystaveno",
     nakupniCena: 13000,
-    dostupnost: "dostupne",
+    prodejniCena: 22000,
+    datumVykupu: "2026-09-11",
     vytvorenoKdy: "2026-09-18",
+    hodnoceni: ["grd-01"],
   },
   {
-    id: "lst-17",
+    id: "kus-17",
     componentId: "cmp-skrin-01",
     prodejceId: "sel-02",
-    stavHodnoceniId: "grd-02",
-    cena: 78000,
+    stav: "vystaveno",
     nakupniCena: 50000,
-    dostupnost: "dostupne",
+    prodejniCena: 78000,
+    datumVykupu: "2026-08-28",
     vytvorenoKdy: "2026-09-04",
+    hodnoceni: ["grd-02"],
   },
   {
-    id: "lst-18",
+    id: "kus-18",
     componentId: "cmp-skrin-02",
     prodejceId: "sel-01",
-    stavHodnoceniId: "grd-03",
-    cena: 42000,
+    stav: "prodano",
     nakupniCena: 20000,
-    dostupnost: "prodano",
+    prodejniCena: 42000,
+    datumVykupu: "2026-08-15",
     vytvorenoKdy: "2026-08-22",
+    hodnoceni: ["grd-03"],
   },
 ];
 
 export const ZASAHY: RepairTicket[] = [
   {
     id: "rep-01",
-    listingId: "lst-04",
+    kusId: "kus-04",
     typZasahu: "cisteni",
     popis: "Vyčištění chladiče a výměna termopasty.",
     naklady: 3500,
@@ -369,7 +411,7 @@ export const ZASAHY: RepairTicket[] = [
   },
   {
     id: "rep-02",
-    listingId: "lst-04",
+    kusId: "kus-04",
     typZasahu: "testovani",
     popis: "Zátěžový test 30 minut, teploty v normě.",
     naklady: 0,
@@ -377,7 +419,7 @@ export const ZASAHY: RepairTicket[] = [
   },
   {
     id: "rep-03",
-    listingId: "lst-05",
+    kusId: "kus-05",
     typZasahu: "vymena",
     popis: "Výměna ventilátoru, který hučel.",
     naklady: 12000,
@@ -385,7 +427,7 @@ export const ZASAHY: RepairTicket[] = [
   },
   {
     id: "rep-04",
-    listingId: "lst-13",
+    kusId: "kus-13",
     typZasahu: "testovani",
     popis: "Měření na vstupu 5V a 12V, rozsah mimo toleranci.",
     naklady: 0,
@@ -393,7 +435,7 @@ export const ZASAHY: RepairTicket[] = [
   },
   {
     id: "rep-05",
-    listingId: "lst-10",
+    kusId: "kus-10",
     typZasahu: "oprava",
     popis: "Defektní hlavačku, kus uvolněn na náhradní díly.",
     naklady: 0,
@@ -404,21 +446,21 @@ export const ZASAHY: RepairTicket[] = [
 export const TESTY: TestEvidence[] = [
   {
     id: "tst-01",
-    listingId: "lst-04",
+    kusId: "kus-04",
     nazevTestu: "Zátěžový test 30 min",
     vysledek: "prosel",
     provedenoKdy: "2026-08-02",
   },
   {
     id: "tst-02",
-    listingId: "lst-13",
+    kusId: "kus-13",
     nazevTestu: "Měření napětí",
     vysledek: "casti",
     provedenoKdy: "2026-08-20",
   },
   {
     id: "tst-03",
-    listingId: "lst-10",
+    kusId: "kus-10",
     nazevTestu: "Kontrola SMART",
     vysledek: "selhal",
     provedenoKdy: "2026-08-24",
@@ -445,7 +487,7 @@ export const TRANSAKCE: Transakce[] = [
   { id: "trx-10", typ: "vydaj", kategorie: "nakup", popis: "Výkup Core i5-12400F", castka: 160000, datum: "2026-07-10" },
 ];
 
-/** Sestavy odkazují na konkrétní kusy (`listingId`), proto musí existovat v `NABIDKY`. */
+/** Sestavy odkazují na konkrétní kusy (`kusId`), proto musí existovat v `KUSY`. */
 export const SESTAVY: Build[] = [
   {
     id: "bld-01",
@@ -453,14 +495,14 @@ export const SESTAVY: Build[] = [
     kategorie: "zaklad",
     popis: "Ryzen 5 5600 s RTX 3060, 16 GB DDR4.",
     polozky: [
-      { id: "itm-01", pozice: "cpu", nazev: "AMD Ryzen 5 5600", listingId: "lst-02", cenaSnapshot: 135000 },
-      { id: "itm-02", pozice: "chladic", nazev: "Arctic Freezer 34", listingId: "lst-15", cenaSnapshot: 12000 },
-      { id: "itm-03", pozice: "mb", nazev: "MSI B550 Gaming Plus", listingId: "lst-11", cenaSnapshot: 128000 },
-      { id: "itm-04", pozice: "ram", nazev: "Kingston Fury Beast 16 GB DDR4", listingId: "lst-06", cenaSnapshot: 39000 },
-      { id: "itm-05", pozice: "gpu", nazev: "NVIDIA GeForce RTX 3060 12GB", listingId: "lst-04", cenaSnapshot: 329000 },
-      { id: "itm-06", pozice: "ssd", nazev: "Samsung 980 NVMe 1 TB", listingId: "lst-08", cenaSnapshot: 85000 },
-      { id: "itm-07", pozice: "psu", nazev: "Corsair CX450", listingId: "lst-13", cenaSnapshot: 52000 },
-      { id: "itm-08", pozice: "skrin", nazev: "Fractal Define 7", listingId: "lst-17", cenaSnapshot: 78000 },
+      { id: "itm-01", pozice: "cpu", nazev: "AMD Ryzen 5 5600", kusId: "kus-02", cenaSnapshot: 135000 },
+      { id: "itm-02", pozice: "chladic", nazev: "Arctic Freezer 34", kusId: "kus-15", cenaSnapshot: 12000 },
+      { id: "itm-03", pozice: "mb", nazev: "MSI B550 Gaming Plus", kusId: "kus-11", cenaSnapshot: 128000 },
+      { id: "itm-04", pozice: "ram", nazev: "Kingston Fury Beast 16 GB DDR4", kusId: "kus-06", cenaSnapshot: 39000 },
+      { id: "itm-05", pozice: "gpu", nazev: "NVIDIA GeForce RTX 3060 12GB", kusId: "kus-04", cenaSnapshot: 329000 },
+      { id: "itm-06", pozice: "ssd", nazev: "Samsung 980 NVMe 1 TB", kusId: "kus-08", cenaSnapshot: 85000 },
+      { id: "itm-07", pozice: "psu", nazev: "Corsair CX450", kusId: "kus-13", cenaSnapshot: 52000 },
+      { id: "itm-08", pozice: "skrin", nazev: "Fractal Define 7", kusId: "kus-17", cenaSnapshot: 78000 },
     ],
   },
   {
@@ -469,15 +511,15 @@ export const SESTAVY: Build[] = [
     kategorie: "stredni",
     popis: "Ryzen 7 5800X s Radeon RX 6700 XT, 32 GB DDR4, NVMe i HDD.",
     polozky: [
-      { id: "itm-09", pozice: "cpu", nazev: "AMD Ryzen 7 5800X", listingId: "lst-03", cenaSnapshot: 210000 },
-      { id: "itm-10", pozice: "chladic", nazev: "be quiet! Pure Rock 2", listingId: "lst-16", cenaSnapshot: 22000 },
-      { id: "itm-11", pozice: "mb", nazev: "MSI B550 Gaming Plus", listingId: "lst-11", cenaSnapshot: 128000 },
-      { id: "itm-12", pozice: "ram", nazev: "Kingston Fury Beast 16 GB DDR4", listingId: "lst-06", cenaSnapshot: 39000 },
-      { id: "itm-13", pozice: "gpu", nazev: "AMD Radeon RX 6700 XT", listingId: "lst-05", cenaSnapshot: 415000 },
-      { id: "itm-14", pozice: "ssd", nazev: "Samsung 980 NVMe 1 TB", listingId: "lst-08", cenaSnapshot: 85000 },
-      { id: "itm-15", pozice: "hdd", nazev: "WD Blue 2 TB", listingId: "lst-10", cenaSnapshot: 12000 },
-      { id: "itm-16", pozice: "psu", nazev: "Corsair RM750e", listingId: "lst-14", cenaSnapshot: 149000 },
-      { id: "itm-17", pozice: "skrin", nazev: "Fractal Define 7", listingId: "lst-17", cenaSnapshot: 78000 },
+      { id: "itm-09", pozice: "cpu", nazev: "AMD Ryzen 7 5800X", kusId: "kus-03", cenaSnapshot: 210000 },
+      { id: "itm-10", pozice: "chladic", nazev: "be quiet! Pure Rock 2", kusId: "kus-16", cenaSnapshot: 22000 },
+      { id: "itm-11", pozice: "mb", nazev: "MSI B550 Gaming Plus", kusId: "kus-11", cenaSnapshot: 128000 },
+      { id: "itm-12", pozice: "ram", nazev: "Kingston Fury Beast 16 GB DDR4", kusId: "kus-06", cenaSnapshot: 39000 },
+      { id: "itm-13", pozice: "gpu", nazev: "AMD Radeon RX 6700 XT", kusId: "kus-05", cenaSnapshot: 415000 },
+      { id: "itm-14", pozice: "ssd", nazev: "Samsung 980 NVMe 1 TB", kusId: "kus-08", cenaSnapshot: 85000 },
+      { id: "itm-15", pozice: "hdd", nazev: "WD Blue 2 TB", kusId: "kus-10", cenaSnapshot: 12000 },
+      { id: "itm-16", pozice: "psu", nazev: "Corsair RM750e", kusId: "kus-14", cenaSnapshot: 149000 },
+      { id: "itm-17", pozice: "skrin", nazev: "Fractal Define 7", kusId: "kus-17", cenaSnapshot: 78000 },
     ],
   },
   {
@@ -486,13 +528,13 @@ export const SESTAVY: Build[] = [
     kategorie: "zaklad",
     popis: "Core i5-12400F s integrovanou grafikou — sestava k demonstraci nesouladu typu paměti.",
     polozky: [
-      { id: "itm-18", pozice: "cpu", nazev: "Intel Core i5-12400F", listingId: "lst-01", cenaSnapshot: 245000 },
-      { id: "itm-19", pozice: "chladic", nazev: "be quiet! Pure Rock 2", listingId: "lst-16", cenaSnapshot: 22000 },
-      { id: "itm-20", pozice: "mb", nazev: "ASUS TUF Gaming B760M", listingId: "lst-12", cenaSnapshot: 265000 },
-      { id: "itm-21", pozice: "ram", nazev: "Kingston Fury Beast 16 GB DDR4", listingId: "lst-06", cenaSnapshot: 39000 },
-      { id: "itm-22", pozice: "ssd", nazev: "Samsung 980 NVMe 1 TB", listingId: "lst-08", cenaSnapshot: 85000 },
-      { id: "itm-23", pozice: "psu", nazev: "Corsair CX450", listingId: "lst-13", cenaSnapshot: 52000 },
-      { id: "itm-24", pozice: "skrin", nazev: "Cooler MasterBox Q300", listingId: null, cenaSnapshot: 42000 },
+      { id: "itm-18", pozice: "cpu", nazev: "Intel Core i5-12400F", kusId: "kus-01", cenaSnapshot: 245000 },
+      { id: "itm-19", pozice: "chladic", nazev: "be quiet! Pure Rock 2", kusId: "kus-16", cenaSnapshot: 22000 },
+      { id: "itm-20", pozice: "mb", nazev: "ASUS TUF Gaming B760M", kusId: "kus-12", cenaSnapshot: 265000 },
+      { id: "itm-21", pozice: "ram", nazev: "Kingston Fury Beast 16 GB DDR4", kusId: "kus-06", cenaSnapshot: 39000 },
+      { id: "itm-22", pozice: "ssd", nazev: "Samsung 980 NVMe 1 TB", kusId: "kus-08", cenaSnapshot: 85000 },
+      { id: "itm-23", pozice: "psu", nazev: "Corsair CX450", kusId: "kus-13", cenaSnapshot: 52000 },
+      { id: "itm-24", pozice: "skrin", nazev: "Cooler MasterBox Q300", kusId: null, cenaSnapshot: 42000 },
     ],
   },
 ];

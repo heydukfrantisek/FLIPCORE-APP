@@ -18,20 +18,24 @@ export default function SkladPage() {
     <>
       <NadpisStranky
         nadpis="Sklad"
-        popis="Kusy v katalogu včetně výkupní ceny, prodejní ceny a stavového hodnocení."
+        popis="Kusy ve skladu včetně výkupní ceny, prodejní ceny a stavového hodnocení."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatKarta nazev="Kusy celkem" hodnota={`${prehled.kusuCelkem}`} popis={`${prehled.kusuDostupnych} k prodeji`} />
         <StatKarta
-          nazev="Hodnota skladu"
-          hodnota={formatCurrency(prehled.hodnotaSkladu)}
-          popis="Prodejní cena všech kusů"
+          nazev="Kusy celkem"
+          hodnota={`${prehled.kusuCelkem}`}
+          popis={`${prehled.kusuVystavenych} vystaveno k prodeji`}
         />
         <StatKarta
-          nazev="Dostupná hodnota"
-          hodnota={formatCurrency(prehled.hodnotaDostupnych)}
-          popis="Bez rezervovaných a prodaných kusů"
+          nazev="Investováno"
+          hodnota={formatCurrency(prehled.investovano)}
+          popis="Součet výkupních cen všech kusů ve skladu"
+        />
+        <StatKarta
+          nazev="Hodnota vystaveného zboží"
+          hodnota={formatCurrency(prehled.hodnotaVystaveno)}
+          popis="Prodejní cena kusů připravených k prodeji"
           odstin="success"
         />
         <StatKarta
@@ -44,8 +48,8 @@ export default function SkladPage() {
 
       <Panel>
         <PanelHeader
-          titulek="Rozpis podle stavu"
-          popis="Počet dostupných kusů v jednotlivých stupních hodnocení"
+          titulek="Rozpis podle hodnocení"
+          popis="Počet vystavených kusů v jednotlivých stupních hodnocení"
         />
         <PanelBody className="p-0">
           <Tabulka>

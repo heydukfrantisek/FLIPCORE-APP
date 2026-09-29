@@ -2,7 +2,7 @@
 
 > Technický návrh systému. Produktové záměry a pravidla tvorby katalogu jsou v [vizi](vize.md), konkrétní změny v jednotlivých funkcích v [dokumentech funkce](funkce/). Uspořádání práce a priority v čase drží [ROADMAP.md](../ROADMAP.md).
 >
-> Poznámka k stavu: repozitář obsahuje scaffold aplikace (viz [dokument funkce 000](funkce/000-zalozeni-projektu.md)) a vnitřní šablonu aplikace nad ukázkovými daty (viz [dokument funkce 002](funkce/002-zakladni-sablona-aplikace.md)). Části tohoto dokumentu označené jako plánované jsou návrh a nepopisují existující kód.
+> Poznámka k stavu: repozitář obsahuje scaffold aplikace (viz [dokument funkce 000](funkce/000-zalozeni-projektu.md)), vnitřní šablonu aplikace (viz [dokument funkce 002](funkce/002-zakladni-sablona-aplikace.md)) a datovou vrstvu nad SQLite (viz [dokument funkce 003](funkce/003-kus-a-persistence.md)). Části tohoto dokumentu označené jako plánované jsou návrh a nepopisují existující kód.
 
 ## Vrstvy a adresářová struktura
 
@@ -78,11 +78,11 @@ Krátké záznamy ve formátu kontext / rozhodnutí / důsledky. Formální záz
 - **Rozhodnutí:** Routy aplikace jsou ve skupině `src/app/(app)/`, která má vlastní `layout.tsx` s komponentou `Kostra`. Skupina rout se v URL neobjeví. Kořenový layout řeší jen `html` a `body`.
 - **Důsledky:** Přidání veřejné skupiny rout s jiným layoutem neomezuje interní sekce. Aktivní položka menu se řeší na klientu přes `usePathname`, proto je `Navigace` klientská komponenta.
 
-### Dočasná datová vrstva v `src/server/repo/data.ts`
+### Datová vrstva: `src/db/` a `src/server/repo/`
 
-- **Kontext:** Persistence není rozhodnuta, ale bez dat se nedá navrhnout ani otestovat rozhraní.
-- **Rozhodnutí:** `src/server/repo/` vrací data z ukázkových konstant v `data.ts`. UI nesmí importovat `data.ts` přímo, jde přes funkce repozitáře.
-- **Důsledky:** Při zvolení persistence se mění jen `src/server/repo/`, stránky zůstávají. Data jsou statická a nejsou serializovatelná pro klientské komponenty — filtr skladu si je proto předává stránka jako propy.
+- **Kontext:** Rozhraní potřebovalo data dřív, než byla persistence rozhodnuta.
+- **Rozhodnutí:** `src/server/repo/` je jediné místo, kde se dotazuje na data. UI nesmí importovat `src/db/` ani `src/server/repo/` přímo, jde přes funkce repozitáře. Klient databáze je označen `server-only`, takže chybný import do klientské komponenty spadne už při sestavení.
+- **Důsledky:** Změna zdroje dat (například přechod na Postgres) se dotkne jen `src/db/` a `src/server/repo/`; stránky zůstanou. Data se na rozdíl od dřívějšího stavu mění za běhu, proto se vnitřní aplikace vykresluje dynamicky a filtr skladu si data dostává jako propy.
 
 ### Peněžní hodnoty jako celé haléře
 
@@ -92,7 +92,7 @@ Krátké záznamy ve formátu kontext / rozhodnutí / důsledky. Formální záz
 
 ## Datový model
 
-Návrh je konceptuální. Popisuje entity, jejich pole a vztahy; konkrétní implementace závisí na nerozhodnuté otázce persistence (viz níže). Každá nová entita musí být zapracována do tohoto oddílu a do [dokumentu funkce](funkce/_template.md), který ji zavádí.
+Návrh je konceptuální. Popisuje entity, jejich pole a vztahy; tabulky odpovídají schématu v `src/db/schema.ts` (viz níže). Každá nová entita musí být zapracována do tohoto oddílu a do [dokumentu funkce](funkce/_template.md), který ji zavádí.
 
 ### Component (typ komponenty)
 
@@ -112,42 +112,61 @@ grafická karta `prikonW` a `delkaMm`, základní deska `typRam` a počet slotů
 by kontrola kompatibility sestav musela sahat na `any`. Tvar jednotlivých specifikací je v
 `src/lib/domain/types.ts`.
 
-### Listing (nabídka konkrétního kusu)
+### Kus (bazarový kus od výkupu po prodej)
 
-Nabídka, kterou prodávající vystaví, včetně stavu a ceny.
+Fyzický kus, který FLIPCORE koupil a který postupuje životním cyklem. Dřívější
+`Listing` popisoval nabídku ke koupi, a tím po prodeji zanikal; kus oproti tomu existuje
+i po prodeji, aby šlo dohledat jeho historii. Zaveden v [dokumentu funkce 003](funkce/003-kus-a-persistence.md).
 
-| Pole             | Typ            | Poznámka |
-| ---------------- | -------------- | -------- |
-| `id`             | id             | Primární klíč |
-| `componentId`    | vazba          | Odkaz na typ komponenty |
-| `prodejceId`     | vazba          | Odkaz na bazar nebo prodejce |
-| `stavHodnoceniId`| vazba          | Odkaz na stavové hodnocení, viz níže |
-| `cena`           | celé číslo v menší jednotce | Peněžní hodnota nabídky |
-| `nakupniCena`    | celé číslo v menší jednotce | Výkupní cena, ze které se počítá marže |
-| `popis`          | text           | Volný popis stavu, může být prázdný |
-| `dostupnost`     | enum           | Dostupné / rezervované / prodané |
-| `vytvorenoKdy`   | čas            | Časová razítka pro řazení a auditaci |
+| Pole            | Typ            | Poznámka |
+| --------------- | -------------- | -------- |
+| `id`            | id             | Primární klíč |
+| `componentId`   | vazba          | Odkaz na typ komponenty |
+| `prodejceId`    | vazba          | Bazar, firma nebo jednotlivec, od kterého byl kus koupen |
+| `stav`          | enum           | Životní cyklus, viz níže |
+| `nakupniCena`   | celé číslo v haléřích | Výkupní cena, ze které se počítá marže; známa od zápisu výkupu |
+| `prodejniCena`  | celé číslo v haléřích, může být `NULL` | Dokud kus není vystaven, prodejní cenu neznáme a marži nepočítáme |
+| `datumVykupu`   | datum          | Datum výkupu ve tvaru `RRRR-MM-DD` |
+| `vytvorenoKdy`  | čas            | Časová razítka pro řazení a auditaci |
+
+Hodnoty `stav` v pořadí životního cyklu:
+
+| Stav           | Význam                                     | Prodává se |
+| -------------- | ------------------------------------------ | ---------- |
+| `vykoupeno`    | Kus je ve skladu, nic na něm nebylo provedeno | ne         |
+| `v_repasu`     | Probíhá zásah nebo testování                | ne         |
+| `ohodnoceno`   | Má stavové hodnocení, ale není vystaven     | ne         |
+| `vystaveno`    | Nabízí se v katalogu                         | ano        |
+| `rezervovano`  | Vybráno, čeká na kupujícího                 | ne         |
+| `prodano`      | Prodáno                                     | ne         |
+
+Prodejní hodnota skladu a marže se počítají jen z kusů ve stavu `vystaveno`; investovaná
+hodnota se počítá ze všech kusů, protože odpovídá penězům, které vložil provozovatel.
 
 ### ConditionGrade (stavové hodnocení)
 
 Výsledek hodnocení kusu, ne deklarace prodávajícího. Škála a doklady jsou navrženy v [dokumentu funkce repasu](funkce/001-repas-a-stavove-hodnoceni.md).
 
+Vazba na kus je **1:N**, aby bylo možné hodnocení v průběhu času revidovat a neztratit
+původní záznam. Aktuální stupeň kusu je hodnocení s nejpozdějším `zhodnocenoKdy`;
+repozitář ho doplní při čtení.
+
 | Pole            | Typ            | Poznámka |
 | --------------- | -------------- | -------- |
 | `id`            | id             | Primární klíč |
-| `stupen`        | enum           | Stupeň škály (navrženo A / B / C / D) |
-| `posuzovaloId`  | vazba          | Kdo hodnocení provedl |
-| `dokladyId`     | vazby          | Odkazy na důkazy (TestEvidence) |
-| `zhodnocenoKdy` | čas            | Časová razítka |
+| `kusId`         | vazba          | Odkaz na kus, ke kterému hodnocení patří |
+| `stupen`        | enum           | Stupeň škály A / B / C / D |
+| `popis`         | text           | Zdůvodnění stupně |
+| `zhodnocenoKdy` | čas            | Časová razítka; určují, které hodnocení je aktuální |
 
 ### RepairTicket (záznam repasu)
 
-Historie zásahů na kus. Vztah k nabídce je 1:N — historie přežívá změnu vlastnictví i opakované zveřejnění.
+Historie zásahů na kus. Vztah ke kusu je 1:N — historie přežívá změnu vlastnictví i opakované zveřejnění.
 
 | Pole          | Typ            | Poznámka |
 | ------------- | -------------- | -------- |
 | `id`          | id             | Primární klíč |
-| `listingId`   | vazba          | Který se kus týká |
+| `kusId`       | vazba          | Který kus se zásahu týká |
 | `typZasahu`   | enum           | Čištění, výměna dílu, oprava, testování |
 | `popis`       | text           | Co se udělalo a proč |
 | `nahradniDil` | vazba volitelná | Použitý náhradní díl, pokud se měnilo |
@@ -161,7 +180,7 @@ Podklady, na kterých stavové hodnocení stojí. Bez nich nelze kus vydávat ja
 | Pole            | Typ            | Poznámka |
 | --------------- | -------------- | -------- |
 | `id`            | id             | Primární klíč |
-| `listingId`     | vazba          | Který se kus týká |
+| `kusId`         | vazba          | Který kus se týká důkazu |
 | `typTestu`      | enum           | Co se ověřovalo |
 | `vysledek`      | enum           | Prošel / Selhal / Částečně |
 | `naměřenéHodnoty`| strukturované | Výsledky měření |
@@ -196,7 +215,7 @@ Podklady, na kterých stavové hodnocení stojí. Bez nich nelze kus vydávat ja
 | --------------- | -------------- | -------- |
 | `id`            | id             | Primární klíč |
 | `kupujiciId`    | vazba          | Odkaz na `User` |
-| `polozky`       | vazby          | Viz `BuildItem` a jednotlivé `Listing` |
+| `polozky`       | vazby          | Viz `BuildItem` a jednotlivé `Kus` |
 | `stav`          | enum           | Rozpracováno / Potvrzeno / Doručeno / Zrušeno |
 | `celkemCena`    | celé číslo v menší jednotce | Vypočteno serverově, klient ho nemůže změnit |
 
@@ -213,7 +232,7 @@ Konfigurace sestavená z kusů v katalogu, v jedné ze tří cenových kategori�
 | `polozky`       | vazby          | Viz `BuildItem` |
 | `platnostKdy`   | čas            | Do kdy je sestava dostupná v dané podobě |
 
-Vztah s `Listing`: sestava odkazuje na konkrétní kusy, které musí být v okamžiku objednávky stále dostupné. Podmínky pro zachování platnosti sestavy jsou otevřená otázka.
+Vztah s `Kus`: sestava odkazuje na konkrétní kusy, které musí být v okamžiku objednávky stále dostupné. Podmínky pro zachování platnosti sestavy jsou otevřená otázka.
 
 ### BuildItem (položka sestavy)
 
@@ -221,7 +240,7 @@ Vztah s `Listing`: sestava odkazuje na konkrétní kusy, které musí být v oka
 | ------------- | -------------- | -------- |
 | `id`          | id             | Primární klíč |
 | `buildId`     | vazba          | Vztah k sestavě |
-| `listingId`   | vazba volitelná | Přímý odkaz na kus v katalogu |
+| `kusId`       | vazba volitelná | Přímý odkaz na kus ve skladu |
 | `nazev`       | text           | Název pozice v sestavě (např. GPU) |
 | `cenaSnapshot`| celé číslo v menší jednotce | Cena v okamžiku sestavení, pro auditaci |
 
@@ -230,16 +249,16 @@ Vztah s `Listing`: sestava odkazuje na konkrétní kusy, které musí být v oka
 ### Přehled vztahů
 
 ```
-Component 1 --- N Listing
-Seller    1 --- N Listing
-Listing   1 --- N RepairTicket
-Listing   1 --- N TestEvidence
-Listing   1 --- 1 ConditionGrade
-User      1 --- N Listing      (jako prodejce)
+Component 1 --- N Kus
+Seller    1 --- N Kus
+Kus       1 --- N RepairTicket
+Kus       1 --- N TestEvidence
+Kus       1 --- N ConditionGrade
+User      1 --- N Kus          (jako prodejce)
 User      1 --- N Order
 Build     1 --- N BuildItem
-Listing   1 --- N BuildItem
-Order     N --- M Listing      (přes BuildItem)
+Kus       1 --- N BuildItem
+Order     N --- M Kus          (přes BuildItem)
 ```
 
 ## URL struktura rout
@@ -267,7 +286,7 @@ Návrh, připravený pro použití s App Routerem. Skutečné routy vzniknou pos
 | Routa         | Obsah |
 | ------------- | ----- |
 | `/nastenka`   | Souhrn skladu, financí, objednávek, sestav a posledních zásahů |
-| `/sklad`      | Katalog kusů s filtrem, marží a rozpadem podle stavu |
+| `/sklad`      | Kusy ve skladu s filtrem, marží a rozpadem podle hodnocení |
 | `/finance`    | Příjmy, výdaje, DPH a přehled po měsících |
 | `/sestavy`    | Sestavy, kontrola kompatibility a porovnání s rozpočtem |
 | `/nastaveni`  | Obchod, rozpočty kategorií, DPH a skladová rezerva (jen pro čtení) |
@@ -278,40 +297,70 @@ zůstanou obě vedle sebe. Viz [Otevřené otázky architektury](#otevřené-ot�
 
 ## Persistence
 
-Datová persistence není rozhodnutá. Repo záměrně neobsahuje žádný výběr databáze ani klienta, aby se nerozhodlo předtím, než je známo, jaké dotazy a objemy budeme potřebovat.
+Persistence je zvolená: **SQLite přes Drizzle ORM** (`drizzle-orm` + `better-sqlite3`).
+Rozhodnutí a jeho důsledky popisuje [ADR 002](adr/002-sqlite-a-drizzle-pro-ukazkove-funkce.md);
+původní [ADR 001](adr/001-ukazkova-data-do-dokonceni-funkci.md) byl nahrazen, protože
+jeho podmínka — „vše zůstává ukázkové, dokud nebudou fungovat všechny funkce" — se
+ukázala nesplnitelná: zápis do statických konstant není možný a aplikace bez zápisu
+nemůže mít vlastní data.
 
-Aplikace proto běží na ukázkových datech v `src/server/repo/data.ts`. Je to záměrné
-rozhodnutí, ne nedokončená práce — viz [ADR 001](adr/001-ukazkova-data-do-dokonceni-funkci.md).
-Dokud ADR 001 platí, jsou všechny strany read-only a **žádná nová funkce nesmí
-obsahovat zápis dat**. Persistence se zavádí v okamžiku, kdy je hotová první funkce
-vyžadující zápis a je rozhodnuto, jaká databáze se použije.
+Rozvržení vrstev:
 
-Následující je plánovaný model, ne implementace:
+| Vrstva                | Obsah                                                                   |
+| --------------------- | ----------------------------------------------------------------------- |
+| `src/db/schema.ts`    | Drizzle schéma — jediný zdroj pravdy o tvaru dat                       |
+| `src/db/client.ts`    | Připojení, `server-only`, automatická aplikace migrací                 |
+| `src/db/seed.ts`      | Naplnění ukázkovými daty, **výhradně** ručně přes `pnpm db:seed`     |
+| `src/db/seed-data.ts` | Ukázková data jako hodnoty, mimo databázi                               |
+| `src/server/repo/`    | Dotazy; UI nesmí sahat na `src/db/` ani na dotazy přímo                |
+
+Pravidla:
 
 - Repozitář vystavuje entity jako objekty, veškerý přístup k datům jde přes `src/server/repo/`.
-- Ceny se ukládají jako celé číslo v nejmenší jednotce, nikoli jako desetinné číslo, aby nevznikaly chyby zaokrouhlení.
+- Ceny se ukládají jako celé číslo v haléřích, nikoli jako desetinné číslo, aby nevznikaly
+  chyby zaokrouhlení. Do databáze se nikdy nezapisuje float.
+- Formátování peněz do korun řeší výhradně `src/lib/format.ts`.
 - Časová razítka se ukládají v UTC.
 - Cizí klíče se v kódu vyjadřují přes sdílené typy, ne jako volné řetězce.
 - Ceny sestav a objednávek se počítají na serveru.
+- **Databáze startuje prázdná.** Aplikace musí fungovat i bez jediného kusu. Demo data
+  se přidávají jedině příkazem `pnpm db:seed`; neexistuje přepínač mezi ukázkovým a
+  ostrým režimem, protože by vedl k promísení dat.
+- Migrace (`pnpm db:generate`, `pnpm db:migrate`) se commitují. Soubor databáze se nikdy.
+- Vnitřní aplikace se vykresluje dynamicky (`export const dynamic = "force-dynamic"`),
+  jinak by se stav skladu zapečel do buildu.
+
+Skripty:
+
+| Příkaz             | Účel                                             |
+| ------------------ | ------------------------------------------------ |
+| `pnpm db:generate` | Vygeneruje migrační SQL ze změn schématu         |
+| `pnpm db:migrate`  | Aplikuje migrace na připojenou databázi          |
+| `pnpm db:seed`     | Přebije databázi ukázkovými daty                 |
+| `pnpm db:studio`   | Prohlížeč pro ruční kontrolu dat                 |
 
 Otevřené otázky k persistence:
 
-- Který typ databáze a jaký klient (včetně ORM nebo dotazovacího builderu) použijeme?
+- Kdy přejít z SQLite na Postgres a kde běží migrace v prostředí s více instalacemi?
+  SQLite má jednoho zapisovatele, což nestačí pro souběžnou rezervaci více kusů.
 - Je potřeba plná transakčnost při objednávce, která současně rezervuje více kusů?
 - Kam ukládáme přílohy důkazů (TestEvidence) a jak je doručíme klientovi?
 - Potřebujeme auditní stopu změn u stavového hodnocení a historie repasu?
-- Kde běží migrace a jak se řídí v prostředí s více instalacemi?
 
 ## Bezpečnost a tajné env proměnné
 
 - **Validace na hranici.** Vstupní data se ověřují na serveru. Validace pouze v klientu je chybová.
 - **Autorizace.** Každý dotaz na data explicitně rozhoduje, zda je požadovaná přihlášenina a zda má daná role přístup. Výchozí stav je odepřen.
-- **Ceny.** Cena se nikdy nepřebírá od klienta. Klient posílá jen identifikátory, server ceny dopočítá.
+- **Ceny.** Cena se nikdy nepřebírá od klienta veřejného košíku — klient posílá jen
+  identifikátory a server ceny dopočítá. **Výkupní cena bazarového kusu je výjimka:** jde
+  o částku, kterou provozovatel sám zaplatil prodávajícímu, a zadává ji na serveru.
+  Server ji proto přijímá ve formuláři, ale vždy ji zvaliduje a uloží sám — nikdy ji
+  nepřebírá z klientského košíku a nikdy ji neodvozuje z ceny prodejní.
 - **Osobní údaje.** Kontakty se zobrazují v nezbytném rozsahu. Detailní osobní údaje se nepropagují do klientských komponent, pokud nejsou potřeba.
 - **Přílohy testů.** Nahrávané soubory se považují za nedůvěryhodné vstup a vyžadují kontrolu typu a velikosti.
 - **Tajné env proměnné** se nikdy necommitují a nepropagují do klienta. Ve frontendu jsou přípustné pouze proměnné s prefixem `NEXT_PUBLIC_`.
-  - Použité názvy: žádné.
-  - Plánované názvy a účel: `DATABASE_URL` (připojení k databázi), `SESSION_SECRET` (podepisování relací), `UPLOAD_STORAGE` (umístění příloh). Názvy jsou návrh, do použití vstupují až se zvolenou persistence a přihlášením.
+  - Použité názvy: `DATABASE_URL` (cesta k souboru SQLite, má výchozí hodnotu a v `.env` ji není třeba uvádět).
+  - Plánované názvy a účel: `SESSION_SECRET` (podepisování relací), `UPLOAD_STORAGE` (umístění příloh). Na budoucím přechodu na Postgres převezme `DATABASE_URL` connection string, například `postgresql://localhost:5432/flipcore`.
 - Obsah `.env` se řídí `.gitignore`; do repozitáře patří pouze `.env.example` s názvy bez hodnot.
 
 ## Otevřené otázky architektury

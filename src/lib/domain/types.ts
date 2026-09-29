@@ -108,21 +108,32 @@ export type Component =
 
 export interface ConditionGrade {
   id: ID;
+  kusId: ID;
   stupen: StupenStavu;
   popis: string;
   zhodnocenoKdy: string;
 }
 
-export interface Listing {
+/** Životní cyklus bazarového kusu. `rezervovano` a `prodano` znamenají, že už nevystavujeme. */
+export type StavKusu =
+  | "vykoupeno"
+  | "v_repasu"
+  | "ohodnoceno"
+  | "vystaveno"
+  | "rezervovano"
+  | "prodano";
+
+export interface Kus {
   id: ID;
   componentId: ID;
   prodejceId: ID;
-  stavHodnoceniId: ID;
-  /** Prodejní cena kusu. */
-  cena: Penize;
-  /** Výkupní cena, za kterou byl kus pořízen. */
+  stav: StavKusu;
+  /** Výkupní cena, za kterou byl kus pořízen. Známa od zápisu výkupu. */
   nakupniCena: Penize;
-  dostupnost: Dostupnost;
+  /** Prodejní cena. `null`, dokud kus není vystaven. */
+  prodejniCena: Penize | null;
+  /** Datum výkupu ve tvaru ISO `RRRR-MM-DD`. */
+  datumVykupu: string;
   vytvorenoKdy: string;
 }
 
@@ -136,7 +147,7 @@ export type TypZasahu = "cisteni" | "vymena" | "oprava" | "testovani";
 
 export interface RepairTicket {
   id: ID;
-  listingId: ID;
+  kusId: ID;
   typZasahu: TypZasahu;
   popis: string;
   naklady: Penize;
@@ -147,7 +158,7 @@ export type VysledekTestu = "prosel" | "selhal" | "casti";
 
 export interface TestEvidence {
   id: ID;
-  listingId: ID;
+  kusId: ID;
   nazevTestu: string;
   vysledek: VysledekTestu;
   provedenoKdy: string;
@@ -167,8 +178,8 @@ export interface BuildItem {
   id: ID;
   pozice: KategorieKomponenty;
   nazev: string;
-  /** Konkrétní kus v katalogu, pokud je sestava složená z reálných nabídek. */
-  listingId: ID | null;
+  /** Konkrétní kus, pokud sestava stojí na skutečných kusech ze skladu. */
+  kusId: ID | null;
   cenaSnapshot: Penize;
 }
 
@@ -210,9 +221,10 @@ export interface Nastaveni {
   skladovaRezerva: number;
 }
 
-export interface ListingZDetailem {
-  listing: Listing;
+export interface KusZDetailem {
+  kus: Kus;
   component: Component;
-  stav: ConditionGrade;
+  /** Nejnovější hodnocení kusu. `undefined`, pokud kus ještě nebyl ohodnocen. */
+  stav: ConditionGrade | undefined;
   prodejce: Seller;
 }

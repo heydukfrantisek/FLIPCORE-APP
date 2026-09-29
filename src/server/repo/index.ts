@@ -1,139 +1,253 @@
+import "server-only";
+
+import { desc, eq } from "drizzle-orm";
+
+import { databaze, schema } from "@/db/client";
+import { spocitatPrehledSkladu, najdiNizsiMarzi, type PrehledSkladu } from "@/lib/domain/sklad";
+import { spocitatPrehledFinanc, type PrehledFinanc } from "@/lib/domain/finance";
+import { zhodnotitSestavu, type MapaKomponent, type ZhodnoceniSestavy } from "@/lib/domain/sestavy";
 import type {
   Component,
   ConditionGrade,
   ID,
-  Listing,
-  ListingZDetailem,
+  Kus,
+  KusZDetailem,
   Nastaveni,
   Objednavka,
   RepairTicket,
   Seller,
+  StavKusu,
   TestEvidence,
   Transakce,
+  Build,
 } from "@/lib/domain/types";
-import { spocitatPrehledSkladu, najdiNizsiMarzi, type PrehledSkladu } from "@/lib/domain/sklad";
-import { spocitatPrehledFinanc, type PrehledFinanc } from "@/lib/domain/finance";
-import { zhodnotitSestavu, type MapaKomponent, type ZhodnoceniSestavy } from "@/lib/domain/sestavy";
-import type { Build } from "@/lib/domain/types";
-
-import {
-  KOMPONENTY,
-  NABIDKY,
-  NASTAVENI,
-  OBJEDNAVKY,
-  PRODEJCI,
-  SESTAVY,
-  STAVY,
-  TESTY,
-  TRANSAKCE,
-  ZASAHY,
-} from "./data";
 
 /**
- * Dočasná datová vrstva. UI nesmí sahat přímo do `data.ts`; veškeré dotazy
- * procházejí přes tyto funkce, aby se po rozhodnutí persistence změnil jen
- * tento soubor.
+ * Datová vrstva. UI nesmí sahat do `src/db/` ani do dotazů; veškeré čtení
+ * prochází přes tyto funkce, takže se změna zdroje dat dotkne jen tohoto souboru.
  */
 
-function komponentyPodleId(): Map<ID, Component> {
-  return new Map(KOMPONENTY.map((komponenta) => [komponenta.id, komponenta]));
+/** Řádky z databáze převádí na doménové typy; ceny jsou už v haléřích. */
+function naKomponentu(radek: typeof schema.komponenty.$inferSelect): Component {
+  return { ...radek, specifikace: radek.specifikace } as Component;
 }
 
-function stavyPodleId(): Map<ID, ConditionGrade> {
-  return new Map(STAVY.map((stav) => [stav.id, stav]));
+function naStav(radek: typeof schema.stavyHodnoceni.$inferSelect): ConditionGrade {
+  return {
+    id: radek.id,
+    kusId: radek.kusId,
+    stupen: radek.stupen as ConditionGrade["stupen"],
+    popis: radek.popis,
+    zhodnocenoKdy: radek.zhodnocenoKdy,
+  };
 }
 
-function prodejciPodleId(): Map<ID, Seller> {
-  return new Map(PRODEJCI.map((prodejce) => [prodejce.id, prodejce]));
+function naProdejce(radek: typeof schema.prodejci.$inferSelect): Seller {
+  return { id: radek.id, nazev: radek.nazev, typ: radek.typ as Seller["typ"] };
 }
 
-/** Kusy v katalogu doplněné o katalogovou komponentu, stav a prodejce. */
-export function getNabidky(): ListingZDetailem[] {
-  const komponenty = komponentyPodleId();
-  const stavy = stavyPodleId();
-  const prodejci = prodejciPodleId();
+function naKus(radek: typeof schema.kusy.$inferSelect): Kus {
+  return {
+    id: radek.id,
+    componentId: radek.componentId,
+    prodejceId: radek.prodejceId,
+    stav: radek.stav as StavKusu,
+    nakupniCena: radek.nakupniCena,
+    prodejniCena: radek.prodejniCena,
+    datumVykupu: radek.datumVykupu,
+    vytvorenoKdy: radek.vytvorenoKdy,
+  };
+}
 
-  return NABIDKY.flatMap((listing) => {
-    const component = komponenty.get(listing.componentId);
-    const stav = stavy.get(listing.stavHodnoceniId);
-    const prodejce = prodejci.get(listing.prodejceId);
+/**
+ * Kusy doplněné o katalogovou komponentu, prodejce a nejnovější stavové hodnocení.
+ * Hodnocení je vazba 1:N, takže se z řádků vybírá to s nejpozdějším datem.
+ */
+export function getKusy(): KusZDetailem[] {
+  const db = databaze();
+  const radky = db.select().from(schema.kusy).all();
+  if (radky.length === 0) {
+    return [];
+  }
 
-    if (!component || !stav || !prodejce) {
+  const komponenty = new Map(
+    db.select().from(schema.komponenty).all().map((radek) => [radek.id, naKomponentu(radek)]),
+  );
+  const prodejci = new Map(
+    db.select().from(schema.prodejci).all().map((radek) => [radek.id, naProdejce(radek)]),
+  );
+
+  // Nejnovější hodnocení pro každý kus; při shodě rozhoduje vyšší ID jako pojistka.
+  const nejnovejsiHodnoceni = new Map<ID, ConditionGrade>();
+  for (const radek of db
+    .select()
+    .from(schema.stavyHodnoceni)
+    .orderBy(desc(schema.stavyHodnoceni.zhodnocenoKdy), desc(schema.stavyHodnoceni.id))
+    .all()) {
+    if (!nejnovejsiHodnoceni.has(radek.kusId)) {
+      nejnovejsiHodnoceni.set(radek.kusId, naStav(radek));
+    }
+  }
+
+  return radky.flatMap((radek) => {
+    const kus = naKus(radek);
+    const component = komponenty.get(kus.componentId);
+    const prodejce = prodejci.get(kus.prodejceId);
+
+    if (!component || !prodejce) {
+      // Cizí klíč to nedovolí, ale bez komponenty nelze kus v UI ukázat.
       return [];
     }
-    return [{ listing, component, stav, prodejce }];
+    return [{ kus, component, stav: nejnovejsiHodnoceni.get(kus.id), prodejce }];
   });
 }
 
-export function getSklad(): { zaznamy: ListingZDetailem[]; prehled: PrehledSkladu } {
-  const zaznamy = getNabidky();
+export function getSklad(): { zaznamy: KusZDetailem[]; prehled: PrehledSkladu } {
+  const zaznamy = getKusy();
   return { zaznamy, prehled: spocitatPrehledSkladu(zaznamy) };
 }
 
 export function getComponenty(): Component[] {
-  return KOMPONENTY;
+  return databaze()
+    .select()
+    .from(schema.komponenty)
+    .all()
+    .map(naKomponentu);
 }
 
 export function getProdejci(): Seller[] {
-  return PRODEJCI;
+  return databaze()
+    .select()
+    .from(schema.prodejci)
+    .all()
+    .map(naProdejce);
 }
 
 export function getZasahy(): RepairTicket[] {
-  return ZASAHY;
+  return databaze()
+    .select()
+    .from(schema.zasahy)
+    .all()
+    .map((radek) => ({
+      id: radek.id,
+      kusId: radek.kusId,
+      typZasahu: radek.typZasahu as RepairTicket["typZasahu"],
+      popis: radek.popis,
+      naklady: radek.naklady,
+      provedenoKdy: radek.provedenoKdy,
+    }));
 }
 
 export interface ZasahSDetailem {
   zasah: RepairTicket;
-  /** Kus, ke kterému zásah patří. Chybí, pokud je nabídka v datech už odstraněná. */
-  zaznam: ListingZDetailem | undefined;
+  /** Kus, ke kterému zásah patří. Chybí, pokud kus v datech už odstraněný není. */
+  zaznam: KusZDetailem | undefined;
 }
 
 export function getZasahySDetaily(): ZasahSDetailem[] {
-  const zaznamy = new Map(getNabidky().map((zaznam) => [zaznam.listing.id, zaznam]));
-  return ZASAHY.map((zasah) => ({ zasah, zaznam: zaznamy.get(zasah.listingId) }));
+  const zaznamy = new Map(getKusy().map((zaznam) => [zaznam.kus.id, zaznam]));
+  return getZasahy().map((zasah) => ({ zasah, zaznam: zaznamy.get(zasah.kusId) }));
 }
 
 export function getTesty(): TestEvidence[] {
-  return TESTY;
+  return databaze()
+    .select()
+    .from(schema.dukazyTestu)
+    .all()
+    .map((radek) => ({
+      id: radek.id,
+      kusId: radek.kusId,
+      nazevTestu: radek.nazevTestu,
+      vysledek: radek.vysledek as TestEvidence["vysledek"],
+      provedenoKdy: radek.provedenoKdy,
+    }));
 }
 
 export function getObjednavky(): Objednavka[] {
-  return OBJEDNAVKY;
+  // Objednávky zatím nejsou součástí schématu — přijdou s veřejným katalogem.
+  return [];
 }
 
 export function getNastaveni(): Nastaveni {
-  return NASTAVENI;
+  const radek = databaze().select().from(schema.nastaveni).limit(1).get();
+
+  if (!radek) {
+    return {
+      nazevObchodu: "FLIPCORE",
+      mena: "CZK",
+      rozpoctyKategorii: { zaklad: 0, stredni: 0, premium: 0 },
+      dphProcenta: 0,
+      skladovaRezerva: 0,
+    };
+  }
+
+  return {
+    nazevObchodu: radek.nazevObchodu,
+    mena: radek.mena,
+    rozpoctyKategorii: radek.rozpoctyKategorii as Nastaveni["rozpoctyKategorii"],
+    dphProcenta: radek.dphProcenta,
+    skladovaRezerva: radek.skladovaRezerva,
+  };
 }
 
 export function getFinance(): { transakce: Transakce[]; prehled: PrehledFinanc } {
-  const transakce = TRANSAKCE;
-  return { transakce, prehled: spocitatPrehledFinanc(transakce, NASTAVENI.dphProcenta) };
+  const transakce: Transakce[] = databaze()
+    .select()
+    .from(schema.transakce)
+    .all()
+    .map((radek) => ({
+      id: radek.id,
+      typ: radek.typ as Transakce["typ"],
+      kategorie: radek.kategorie as Transakce["kategorie"],
+      popis: radek.popis,
+      castka: radek.castka,
+      datum: radek.datum,
+    }));
+
+  return { transakce, prehled: spocitatPrehledFinanc(transakce, getNastaveni().dphProcenta) };
 }
 
 export interface SestavaSCenou extends Build {
   zhodnoceni: ZhodnoceniSestavy;
 }
 
-/** Mapuje ID kusu (listingu) na katalogovou komponentu, kterou vlastní. */
+/** Mapuje ID kusu na katalogovou komponentu, kterou kus obsahuje. */
 function mapaKomponentProKus(): MapaKomponent {
-  const komponenty = komponentyPodleId();
   const mapa: MapaKomponent = new Map();
-  for (const listing of NABIDKY) {
-    const component = komponenty.get(listing.componentId);
-    if (component) {
-      mapa.set(listing.id, component);
-    }
+  for (const zaznam of getKusy()) {
+    mapa.set(zaznam.kus.id, zaznam.component);
   }
   return mapa;
 }
 
 export function getSestavy(): SestavaSCenou[] {
-  const komponenty = mapaKomponentProKus();
-  return SESTAVY.map((sestava) => ({ ...sestava, zhodnoceni: zhodnotitSestavu(sestava, komponenty) }));
+  const db = databaze();
+  const radky = db.select().from(schema.sestavy).all();
+  const polozky = db.select().from(schema.polozkySestav).all();
+
+  return radky.map((radek) => {
+    const sestava: Build = {
+      id: radek.id,
+      nazev: radek.nazev,
+      kategorie: radek.kategorie as Build["kategorie"],
+      popis: radek.popis,
+      polozky: polozky
+        .filter((polozka) => polozka.sestavaId === radek.id)
+        .map((polozka) => ({
+          id: polozka.id,
+          pozice: polozka.pozice as Build["polozky"][number]["pozice"],
+          nazev: polozka.nazev,
+          kusId: polozka.kusId,
+          cenaSnapshot: polozka.cenaSnapshot,
+        })),
+    };
+    return { ...sestava, zhodnoceni: zhodnotitSestavu(sestava, mapaKomponentProKus()) };
+  });
 }
 
-export function getNabidka(id: ID): Listing | undefined {
-  return NABIDKY.find((listing) => listing.id === id);
+export function getKus(id: ID): Kus | undefined {
+  const radek = databaze().select().from(schema.kusy).where(eq(schema.kusy.id, id)).get();
+  return radek ? naKus(radek) : undefined;
 }
 
 export interface PrehledNastenky {
@@ -146,7 +260,7 @@ export interface PrehledNastenky {
     vRozpoctu: number;
   };
   objednavky: Objednavka[];
-  nizsiMarze: ListingZDetailem[];
+  nizsiMarze: KusZDetailem[];
   posledniZasahy: ZasahSDetailem[];
 }
 
@@ -155,9 +269,10 @@ export function getPrehledNastenky(): PrehledNastenky {
   const { zaznamy, prehled: sklad } = getSklad();
   const { prehled: finance } = getFinance();
   const sestavy = getSestavy();
+  const nastaveni = getNastaveni();
 
   const vRozpoctu = sestavy.filter((sestava) => {
-    const rozpoctet = NASTAVENI.rozpoctyKategorii[sestava.kategorie];
+    const rozpoctet = nastaveni.rozpoctyKategorii[sestava.kategorie];
     return sestava.zhodnoceni.celkemCena <= rozpoctet;
   }).length;
 
@@ -170,7 +285,7 @@ export function getPrehledNastenky(): PrehledNastenky {
       sProblemem: sestavy.filter((sestava) => !sestava.zhodnoceni.kompatibilni).length,
       vRozpoctu,
     },
-    objednavky: OBJEDNAVKY,
+    objednavky: getObjednavky(),
     nizsiMarze: najdiNizsiMarzi(zaznamy, 30),
     posledniZasahy: getZasahySDetaily()
       .slice()

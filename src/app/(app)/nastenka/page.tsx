@@ -6,7 +6,7 @@ import { StatKarta } from "@/components/stat-karta";
 import { Tabulka, TabulkaBunka, TabulkaHlavicka, TabulkaRadek } from "@/components/tabulka";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { KATEGORIE_POPIS, OBJEDNAVKA_POPIS, ZASAH_POPIS } from "@/lib/domain/slovnik";
-import { spocitatMarziProcenta } from "@/lib/domain/sklad";
+import { spocitatMarzi, spocitatMarziProcenta } from "@/lib/domain/sklad";
 import { getPrehledNastenky } from "@/server/repo";
 
 export const metadata = {
@@ -21,19 +21,19 @@ export default function NastenkaPage() {
     <>
       <NadpisStranky
         nadpis="Nástěnka"
-        popis="Přehled skladu, financí a sestav. Data jsou ukázková, dokud není připojené uložiště."
+        popis="Přehled skladu, financí a sestav. Zobrazují se data z připojené databáze."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatKarta
-          nazev="Kusy v katalogu"
+          nazev="Kusy ve skladu"
           hodnota={`${sklad.kusuCelkem}`}
-          popis={`${sklad.kusuDostupnych} k prodeji`}
+          popis={`${sklad.kusuVystavenych} vystaveno k prodeji`}
         />
         <StatKarta
-          nazev="Hodnota dostupného skladu"
-          hodnota={formatCurrency(sklad.hodnotaDostupnych)}
-          popis={`Marže ${formatPercent(sklad.marzeProcenta)}`}
+          nazev="Hodnota vystaveného zboží"
+          hodnota={formatCurrency(sklad.hodnotaVystaveno)}
+          popis={`Investováno ${formatCurrency(sklad.investovano)}`}
           odstin="success"
         />
         <StatKarta
@@ -99,7 +99,7 @@ export default function NastenkaPage() {
         <Panel>
           <PanelHeader
             titulek="Kusy s nízkou marží"
-            popis="Dostupné kusy s marží pod 30 % — kandidáti na přehodnocení ceny"
+            popis="Vystavené kusy s marží pod 30 % — kandidáti na přehodnocení ceny"
           />
           {nizsiMarze.length === 0 ? (
             <PrazdnyStav
@@ -116,7 +116,7 @@ export default function NastenkaPage() {
               </TabulkaHlavicka>
               <tbody>
                 {nizsiMarze.map((zaznam) => (
-                  <TabulkaRadek key={zaznam.listing.id}>
+                  <TabulkaRadek key={zaznam.kus.id}>
                     <TabulkaBunka hlavni>
                       {zaznam.component.vyrobce} {zaznam.component.model}
                       <span className="block text-xs font-normal text-zinc-400 dark:text-zinc-500">
@@ -124,9 +124,9 @@ export default function NastenkaPage() {
                       </span>
                     </TabulkaBunka>
                     <TabulkaBunka className="text-right">
-                      {formatCurrency(zaznam.listing.cena - zaznam.listing.nakupniCena)}
+                      {formatCurrency(spocitatMarzi(zaznam.kus))}
                       <span className="block text-xs text-amber-600 dark:text-amber-400">
-                        {formatPercent(spocitatMarziProcenta(zaznam.listing))}
+                        {formatPercent(spocitatMarziProcenta(zaznam.kus))}
                       </span>
                     </TabulkaBunka>
                   </TabulkaRadek>
@@ -192,7 +192,7 @@ export default function NastenkaPage() {
                     <TabulkaBunka hlavni>
                       {zaznam
                         ? `${zaznam.component.vyrobce} ${zaznam.component.model}`
-                        : `Neznámý kus ${zasah.listingId}`}
+                        : `Neznámý kus ${zasah.kusId}`}
                     </TabulkaBunka>
                   <TabulkaBunka>
                     <Badge odstin="info">{ZASAH_POPIS[zasah.typZasahu]}</Badge>

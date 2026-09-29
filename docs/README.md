@@ -31,6 +31,7 @@ Konkrétní číslované dokumenty funkce:
 | [000-zalozeni-projektu](funkce/000-zalozeni-projektu.md) | infrastruktura | V produkci |
 | [001-repas-a-stavove-hodnoceni](funkce/001-repas-a-stavove-hodnoceni.md) | repas | Plánováno |
 | [002-zakladni-sablona-aplikace](funkce/002-zakladni-sablona-aplikace.md) | infrastruktura | Náhled |
+| [003-kus-a-persistence](funkce/003-kus-a-persistence.md) | infrastruktura | Rozpracováno |
 
 ## Jak dokumentaci aktualizovat
 

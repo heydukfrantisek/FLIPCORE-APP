@@ -112,7 +112,7 @@ export default function SestavyPage() {
                         <TabulkaBunka>{KATEGORIE_POPIS[polozka.pozice]}</TabulkaBunka>
                         <TabulkaBunka hlavni>
                           {polozka.nazev}
-                          {polozka.listingId ? null : (
+                          {polozka.kusId ? null : (
                             <span className="block text-xs font-normal text-amber-600 dark:text-amber-400">
                               kus zatím není v katalogu
                             </span>

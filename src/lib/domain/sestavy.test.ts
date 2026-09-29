@@ -145,7 +145,7 @@ const KOMPONENTY: Component[] = [
 
 const MAPA: MapaKomponent = new Map(KOMPONENTY.map((komponenta) => [komponenta.id, komponenta]));
 
-function sestava(polozky: Array<{ pozice: Pozice; listingId: string | null; cena?: number }>): Build {
+function sestava(polozky: Array<{ pozice: Pozice; kusId: string | null; cena?: number }>): Build {
   return {
     id: "b1",
     nazev: "Testovací sestava",
@@ -154,27 +154,27 @@ function sestava(polozky: Array<{ pozice: Pozice; listingId: string | null; cena
     polozky: polozky.map((polozka, index) => ({
       id: `p${index}`,
       pozice: polozka.pozice,
-      nazev: polozka.listingId ?? "bez kusu",
-      listingId: polozka.listingId,
+      nazev: polozka.kusId ?? "bez kusu",
+      kusId: polozka.kusId,
       cenaSnapshot: polozka.cena ?? 1000,
     })),
   };
 }
 
-type Polozka = { pozice: Pozice; listingId: string | null };
+type Polozka = { pozice: Pozice; kusId: string | null };
 
 const KOMPLETNI: Polozka[] = [
-  { pozice: "cpu", listingId: "l-cpu" },
-  { pozice: "chladic", listingId: "l-chladic" },
-  { pozice: "mb", listingId: "l-mb" },
-  { pozice: "ram", listingId: "l-ram" },
-  { pozice: "gpu", listingId: "l-gpu" },
-  { pozice: "psu", listingId: "l-psu" },
-  { pozice: "skrin", listingId: "l-skrin" },
+  { pozice: "cpu", kusId: "l-cpu" },
+  { pozice: "chladic", kusId: "l-chladic" },
+  { pozice: "mb", kusId: "l-mb" },
+  { pozice: "ram", kusId: "l-ram" },
+  { pozice: "gpu", kusId: "l-gpu" },
+  { pozice: "psu", kusId: "l-psu" },
+  { pozice: "skrin", kusId: "l-skrin" },
 ];
 
-function nahrad(seznam: Polozka[], pozice: Pozice, listingId: string): Polozka[] {
-  return seznam.map((polozka) => (polozka.pozice === pozice ? { pozice, listingId } : polozka));
+function nahrad(seznam: Polozka[], pozice: Pozice, kusId: string): Polozka[] {
+  return seznam.map((polozka) => (polozka.pozice === pozice ? { pozice, kusId } : polozka));
 }
 
 function bezPozice(seznam: Polozka[], pozice: Pozice): Polozka[] {
@@ -185,8 +185,8 @@ describe("spocitatCelkovouCenu", () => {
   it("sečte ceny položek v haléřích", () => {
     const cena = spocitatCelkovouCenu(
       sestava([
-        { pozice: "cpu", listingId: "l-cpu", cena: 135000 },
-        { pozice: "ram", listingId: "l-ram", cena: 39000 },
+        { pozice: "cpu", kusId: "l-cpu", cena: 135000 },
+        { pozice: "ram", kusId: "l-ram", cena: 39000 },
       ]),
     );
     expect(cena).toBe(174000);
@@ -263,7 +263,7 @@ describe("zhodnotitSestavu — povinné pozice a duplicity", () => {
 
   it("vypíše obsazení pozice dvěma kusy", () => {
     const zhodnoceni = zhodnotitSestavu(
-      sestava([...KOMPLETNI, { pozice: "ram", listingId: "l-ram" }]),
+      sestava([...KOMPLETNI, { pozice: "ram", kusId: "l-ram" }]),
       MAPA,
     );
     expect(zhodnoceni.problemy).toContain("Pozice ram je obsazena vícekrát.");
@@ -271,7 +271,7 @@ describe("zhodnotitSestavu — povinné pozice a duplicity", () => {
 
   it("více disků v jedné sestavě nese chybu", () => {
     const zhodnoceni = zhodnotitSestavu(
-      sestava([...KOMPLETNI, { pozice: "ssd", listingId: "l-ssd-m2" }]),
+      sestava([...KOMPLETNI, { pozice: "ssd", kusId: "l-ssd-m2" }]),
       MAPA,
     );
     expect(zhodnoceni.kompatibilni).toBe(true);
@@ -337,7 +337,7 @@ describe("zhodnotitSestavu — kompatibilita komponent", () => {
 
   it("kus, který už v katalogu není", () => {
     const zhodnoceni = zhodnotitSestavu(
-      sestava([...KOMPLETNI, { pozice: "ssd", listingId: "l-ssd-mazany" }]),
+      sestava([...KOMPLETNI, { pozice: "ssd", kusId: "l-ssd-mazany" }]),
       MAPA,
     );
     expect(zhodnoceni.problemy.some((problem) => problem.includes("už v katalogu není"))).toBe(
@@ -347,7 +347,7 @@ describe("zhodnotitSestavu — kompatibilita komponent", () => {
 
   it("pozice bez kusu v katalogu se přeskočí", () => {
     const zhodnoceni = zhodnotitSestavu(
-      sestava([...KOMPLETNI, { pozice: "hdd", listingId: null }]),
+      sestava([...KOMPLETNI, { pozice: "hdd", kusId: null }]),
       MAPA,
     );
     expect(zhodnoceni.kompatibilni).toBe(true);
@@ -359,8 +359,8 @@ describe("zhodnotitSestavu — úložiště", () => {
     const zhodnoceni = zhodnotitSestavu(
       sestava([
         ...nahrad(KOMPLETNI, "mb", "l-mb-uzke"),
-        { pozice: "ssd", listingId: "l-ssd-m2" },
-        { pozice: "ssd", listingId: "l-ssd-m2" },
+        { pozice: "ssd", kusId: "l-ssd-m2" },
+        { pozice: "ssd", kusId: "l-ssd-m2" },
       ]),
       MAPA,
     );
@@ -371,9 +371,9 @@ describe("zhodnotitSestavu — úložiště", () => {
     const zhodnoceni = zhodnotitSestavu(
       sestava([
         ...nahrad(KOMPLETNI, "mb", "l-mb-uzke"),
-        { pozice: "hdd", listingId: "l-hdd" },
-        { pozice: "ssd", listingId: "l-ssd-sata" },
-        { pozice: "ssd", listingId: "l-ssd-sata" },
+        { pozice: "hdd", kusId: "l-hdd" },
+        { pozice: "ssd", kusId: "l-ssd-sata" },
+        { pozice: "ssd", kusId: "l-ssd-sata" },
       ]),
       MAPA,
     );
@@ -384,8 +384,8 @@ describe("zhodnotitSestavu — úložiště", () => {
     const zhodnoceni = zhodnotitSestavu(
       sestava([
         ...nahrad(KOMPLETNI, "mb", "l-mb-uzke"),
-        { pozice: "ssd", listingId: "l-ssd-m2" },
-        { pozice: "hdd", listingId: "l-hdd" },
+        { pozice: "ssd", kusId: "l-ssd-m2" },
+        { pozice: "hdd", kusId: "l-hdd" },
       ]),
       MAPA,
     );

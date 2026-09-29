@@ -32,6 +32,16 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local database — migrace se commitují, data nikoli
+/data/
+*.db
+*.db-shm
+*.db-wal
+
+# generated SQL migrations from the database file
+/drizzle/meta/_journal.json.bak
 
 # vercel
 .vercel

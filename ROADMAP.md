@@ -33,23 +33,36 @@ Platí pro každou položku v tomto roadmapu. Bod je hotový, když je splněno 
 ## Fáze 0 — Základ projektu a domény
 
 Cíl: zprovoznit datový model a přihlášení tak, aby na něj navázaly další fáze. Velikost: **L**.
-Obsahuje entity `User`, `Component`, `Listing`, `ConditionGrade`, `RepairTicket`, `Build`,
+Obsahuje entity `User`, `Component`, `Kus`, `ConditionGrade`, `RepairTicket`, `Build`,
 `BuildItem`.
 
 ### Data
 
-- [ ] Zvolit ORM a databázi; rozhodnutí zapiš jako ADR v `docs/adr/`. Odloženo do
-      dokončení funkcí, viz [ADR 001](docs/adr/001-ukazkova-data-do-dokonceni-funkci.md).
-- [ ] Schéma a migrace pro `User`, `Component`, `Listing`, `ConditionGrade`, `RepairTicket`,
-      `Build`, `BuildItem`.
-- [ ] `Component` jako katalogová entita (výrobce, model, kategorie: CPU/GPU/RAM/SSD/HDD/
-      MB/PSU/VGA/chladič) s normalizovanými atributy pro filtrování.
-- [ ] `Listing` jako nabídka konkrétního kusu: odkaz na `Component`, stav, cena, dostupnost,
-      prodejce, umístění.
-- [ ] `ConditionGrade` jako oddělená tabulka hodnocení s verzí škály (viz Fáze 1).
-- [ ] `RepairTicket` s krocemi procesu, výsledkem a vazbou na `Listing`.
-- [ ] `Build` a `BuildItem` s vazbou na konkrétní nabídku; `BuildItem` nese i roli
-      (např. `gpu`, `cooler`).
+- [x] Zvolit ORM a databázi; rozhodnutí zapsáno jako
+      [ADR 002](docs/adr/002-sqlite-a-drizzle-pro-ukazkove-funkce.md) — SQLite přes Drizzle.
+- [x] Schéma a migrace pro `Component`, `Kus`, `ConditionGrade`, `RepairTicket`, `Build`,
+      `BuildItem` (`src/db/schema.ts`, první migrace v `drizzle/`). Chybí `User`, který přijde
+      s přihlášením.
+- [x] `Component` jako katalogová entita (výrobce, model, kategorie: CPU/GPU/RAM/SSD/HDD/
+      MB/PSU/chladič/skříň) s normalizovanými atributy pro filtrování.
+- [x] `Kus` jako bazarový kus s životním cyklem `vykoupeno → v_repasu → ohodnoceno →
+      vystaveno → rezervováno → prodáno`, výkupní cenou a prodejní cenou, viz
+      [dokument funkce 003](docs/funkce/003-kus-a-persistence.md).
+- [x] `ConditionGrade` jako oddělená tabulka hodnocení s vazbou 1:N na kus, aby šlo
+      hodnocení revidovat bez ztráty historie (viz Fáze 1).
+- [x] `RepairTicket` s vazbou na `Kus`.
+- [x] `Build` a `BuildItem` s vazbou na konkrétní kus; `BuildItem` nese i pozici
+      (např. `gpu`, `chladic`).
+- [x] `Component` jako katalogová entita (výrobce, model, kategorie: CPU/GPU/RAM/SSD/HDD/
+      MB/PSU/chladič/skříň) s normalizovanými atributy pro filtrování.
+- [x] `Kus` jako bazarový kus s životním cyklem `vykoupeno → v_repasu → ohodnoceno →
+      vystaveno → rezervováno → prodáno`, výkupní cenou a prodejní cenou, viz
+      [dokument funkce 003](docs/funkce/003-kus-a-persistence.md).
+- [x] `ConditionGrade` jako oddělená tabulka hodnocení s vazbou 1:N na kus, aby šlo
+      hodnocení revidovat bez ztráty historie (viz Fáze 1).
+- [x] `RepairTicket` s vazbou na `Kus`.
+- [x] `Build` a `BuildItem` s vazbou na konkrétní kus; `BuildItem` nese i pozici
+      (např. `gpu`, `chladic`).
 - [x] Peněžní částky jako celé číslo v haléřích (CZK), žádné `float` penízy — typ `Penize` a `formatCurrency` v `src/lib/`.
 - [ ] Ceny, názvy a filtry jako řetězce s pevným kódování a uložené v `utf8` (diakritika
       v názvech zboží jsou běžné).
@@ -63,7 +76,7 @@ Obsahuje entity `User`, `Component`, `Listing`, `ConditionGrade`, `RepairTicket`
 
 ### UI
 
-Interní aplikace (provozní nástroj) — hotovo jako náhled nad ukázkovými daty, viz
+Interní aplikace (provozní nástroj) — běží nad databází, viz
 [dokument funkce 002](docs/funkce/002-zakladni-sablona-aplikace.md):
 
 - [x] App shell vnitřní aplikace: postranní menu, pět sekcí (nástěnka, sklad, finance,
@@ -72,9 +85,13 @@ Interní aplikace (provozní nástroj) — hotovo jako náhled nad ukázkovými 
 - [x] Formátovací utility v `src/lib/format.ts` (cena, číslo, procento, datum).
 - [x] Obchodní výpočty v `src/lib/domain/` (marže, přehled skladu, DPH, kompatibilita
       sestav) s testy.
-- [ ] Dočasnou datovou vrstvu `src/server/repo/data.ts` nahradit skutečnou persistence
-      — až bude hotová první funkce vyžadující zápis, viz
-      [ADR 001](docs/adr/001-ukazkova-data-do-dokonceni-funkci.md).
+- [x] Dočasnou datovou vrstvu nahradit skutečnou persistence: `src/db/` (schéma, klient,
+      seed) a dotazy v `src/server/repo/`, viz
+      [dokument funkce 003](docs/funkce/003-kus-a-persistence.md).
+- [x] Prázdná databáze jako výchozí stav; ukázková data se naplňují výhradně příkazem
+      `pnpm db:seed`.
+- [x] Vnitřní aplikace se vykresluje dynamicky, aby se na obrazovkách neponechaly data
+      z okamžiku buildu.
 - [ ] Ukládání nastavení a formuláře pro zápis dat (blokuje auth).
 
 Veřejná část — plánováno, navazuje na Fázi 2:
@@ -128,8 +145,8 @@ Cíl: uživatel dojde z vyhledávání ke konkrétní nabídce. Velikost: **L**.
 ### Data
 
 - [ ] Fulltextové vyhledávání nad názvem a výrobcem.
-- [ ] Facetové filtry: kategorie, socket, generace, stav (`ConditionGrade`), cena (rozsah),
-      dostupnost, prodejce.
+- [ ] Facetové filtry: kategorie, socket, generace, hodnocení (`ConditionGrade`), cena
+      (rozsah), stav kusu, prodejce.
 - [ ] Řazení: relevanci, cena vzestupně/sestupně, nejnovější.
 
 ### UI
@@ -154,7 +171,7 @@ Cíl: uživatel si může vybrané kusy koupit. Velikost: **L**.
 
 ### Data
 
-- [ ] `Order` a `OrderItem` navázané na konkrétní `Listing` (rezervace skladové zásoby při vložení
+- [ ] `Order` a `OrderItem` navázané na konkrétní `Kus` (rezervace skladové zásoby při vložení
       do košíku).
 - [ ] Stavový model objednávky: `created` → `paid` → `packed` → `shipped` → `delivered`
       (+ `cancelled`, `refunded`) s historií přechodů.
@@ -185,7 +202,7 @@ kategorií a dostat ji do košíku. Velikost: **L**.
 
 - [ ] Pravidla kompatibility: socket CPU ↔ MB, typ paměti (DDR4/DDR5) ↔ MB, formát
       disku ↔ MB, výkon a rozměr zdroje, sloty pro karty a chlazení, TDP vs. chladič.
-- [ ] Řízení dostupnosti: do sestavy lze dát jen kusy, které jsou v katalogu a nedokončily
+- [ ] Řízení dostupnosti: do sestavy lze dát jen kusy ve stavu `vystaveno`, které nedokončily
       prodej.
 - [ ] Výpočet ceny sestavy (součet nabídek + volitelné položky typu montáž později) a
       srovnání s referenční částkou kategorie.

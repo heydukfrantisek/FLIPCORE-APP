@@ -45,7 +45,7 @@ odložená relace, viz [architektura](../architektura.md#datovy-model).
 
 - Nové entity: žádné. Všechny typy už jsou v [architektuře](../architektura.md#datovy-model),
   tato funkce je jen čte.
-- Změny existujících entit: `Listing` dostal pole `nakupniCena` (výkupní cena) — bez ní
+- Změny existujících entit: `Kus` dostal pole `nakupniCena` (výkupní cena) — bez ní
   nešel spočítat skladový přehled a marže.
 - Migrace: neprobíhají, data jsou ukázková v `src/server/repo/data.ts`.
 
@@ -77,7 +77,7 @@ Přístupnost: menu má `aria-label`, aktivní položka `aria-current="page"`, t
 - Ceny jsou celé haléře. `formatCurrency` dělí stem, sčítání nikdy nepracuje s floaty.
 - `FiltroSkladu` je klientská komponenta, ale pravidla filtru neopakuje — volá
   `filtrovatSklad` a `raditSklad` z `src/lib`. Data dostává jako propy ze serveru.
-- `MapaKomponent` mapuje **ID kusu (listingu)** na katalogovou komponentu, ne ID komponenty.
+- `MapaKomponent` mapuje **ID kusu** na katalogovou komponentu, ne ID komponenty.
   Sestava totiž odkazuje na konkrétní kus.
 - Disky se v sestavě mohou opakovat (`JEDNOUCNE_POZICE` je neobsahuje), ostatní pozice ne.
 - `src/server/repo/data.ts` je dočasná databáze. Nesmí se do ní importovat z klientské
@@ -103,7 +103,7 @@ Přístupnost: menu má `aria-label`, aktivní položka `aria-current="page"`, t
 
 Všechny stránky jsou staticky předrenderované a data jsou v paměti. Se skutečnou
 persistencí budou náročné přehledy nad skladem a financemi — počítat se musí s indexem
-na `Listing.dostupnost` a stránkováním. Zatím se nic nestřídá, stránkování ani cache nejsou
+na stav kusu a stránkováním. Zatím se nic nestřídá, stránkování ani cache nejsou
 potřeba.
 
 ## Analytika/telemetrie

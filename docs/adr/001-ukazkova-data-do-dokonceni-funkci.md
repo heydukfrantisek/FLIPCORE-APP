@@ -1,9 +1,10 @@
 # ADR 001: Aplikace běží na ukázkových datech, dokud nejsou hotové všechny funkce
 
-- Status: Přijato
+- Status: Nahrazeno (viz [ADR 002](002-sqlite-a-drizzle-pro-ukazkove-funkce.md))
 - Datum: 2026-09-29
 - Dotýká se: persistence, datové vrstvy, plánování prací
 - Nahrazuje: nic
+- Nahrazeno: [ADR 002](002-sqlite-a-drizzle-pro-ukazkove-funkce.md)
 
 ## Kontext
 

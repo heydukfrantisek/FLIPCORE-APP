@@ -1,9 +1,9 @@
 import type {
   CenovaKategorie,
-  Dostupnost,
   KategorieKomponenty,
-  StupenStavu,
+  StavKusu,
   StavObjednavky,
+  StupenStavu,
   TypProdejce,
   TypZasahu,
   VysledekTestu,
@@ -41,11 +41,24 @@ export const STUPEN_POPIS: Record<StupenStavu, string> = {
   D: "D — mimo provoz, na náhradní díly",
 };
 
-export const DOSTUPNOST_POPIS: Record<Dostupnost, string> = {
-  dostupne: "Dostupné",
+/** Pořadí stavů odpovídá životnímu cyklu kusu, ne pořadí v UI. */
+export const STAV_KUSU_POPIS: Record<StavKusu, string> = {
+  vykoupeno: "Vykoupeno",
+  v_repasu: "V repasu",
+  ohodnoceno: "Ohodnoceno",
+  vystaveno: "Vystaveno",
   rezervovano: "Rezervováno",
   prodano: "Prodáno",
 };
+
+export const PORADI_STAVU_KUSU: StavKusu[] = [
+  "vykoupeno",
+  "v_repasu",
+  "ohodnoceno",
+  "vystaveno",
+  "rezervovano",
+  "prodano",
+];
 
 export const PRODEJCE_POPIS: Record<TypProdejce, string> = {
   bazar: "Bazar",
