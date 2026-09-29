@@ -53,4 +53,4 @@ TODO: doplň cílovou platformu (Vercel / Docker / vlastní) a postup.
 
 ## Kontakt
 
-[flipcorehk@gmial.com](mailto:flipcorehk@gmial.com)
+[flipcorehk@gmail.com](mailto:flipcorehk@gmail.com)
