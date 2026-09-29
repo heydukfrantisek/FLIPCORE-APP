@@ -150,17 +150,28 @@ export interface RepairTicket {
   kusId: ID;
   typZasahu: TypZasahu;
   popis: string;
+  /** `true`, pokud se měnil díl. U `typZasahu: "vymena"` povinné `true`. */
+  nahradniDil: boolean;
   naklady: Penize;
   provedenoKdy: string;
 }
 
 export type VysledekTestu = "prosel" | "selhal" | "casti";
 
+/**
+ * Co test dokazuje. Bez typu nelze stupeň odvodit — z „prošel“ u libovolného
+ * testu by nevadilo, co vlastně bylo ověřeno.
+ */
+export type TypTestu = "profil" | "funkcni" | "vizualni";
+
 export interface TestEvidence {
   id: ID;
   kusId: ID;
   nazevTestu: string;
+  typTestu: TypTestu;
   vysledek: VysledekTestu;
+  /** Smysluplné jen u `vizualni`; u ostatních vždy `false`. */
+  nalezenaVada: boolean;
   provedenoKdy: string;
 }
 

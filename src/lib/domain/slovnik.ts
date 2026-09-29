@@ -5,6 +5,7 @@ import type {
   StavObjednavky,
   StupenStavu,
   TypProdejce,
+  TypTestu,
   TypZasahu,
   VysledekTestu,
 } from "./types";
@@ -77,6 +78,13 @@ export const TEST_POPIS: Record<VysledekTestu, string> = {
   prosel: "Prošel",
   selhal: "Selhal",
   casti: "Částečně",
+};
+
+/** Typ testu říká, co důkaz dokazuje — podle toho pak rozhodují pravidla odvození stupně. */
+export const TYP_TESTU_POPIS: Record<TypTestu, string> = {
+  profil: "Profilový test",
+  funkcni: "Funkční test",
+  vizualni: "Vizuální kontrola",
 };
 
 export const OBJEDNAVKA_POPIS: Record<StavObjednavky, string> = {

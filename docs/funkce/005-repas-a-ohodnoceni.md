@@ -2,16 +2,17 @@
 
 | Položka         | Hodnota                                                                                                                                             |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status          | `Návrh`                                                                                                                                            |
+| Status          | `Implementováno`                                                                                                                                    |
 | Vlastník        | FLIPCORE                                                                                                                                            |
 | Datum           | 2026-09-29                                                                                                                                          |
 | Oblast          | repas, zápis dat                                                                                                                                  |
-| Navazující dokl. | [001 — Repas a stavové hodnocení](001-repas-a-stavove-hodnoceni.md), [004 — Evidence výkupu](004-evidence-vykupu.md), [architektura](../architektura.md#datový-model), [ROADMAP](../../ROADMAP.md) |
+| Navazující dokl. | [001 — Repas a stavové hodnocení](001-repas-a-stavove-hodnoceni.md), [004 — Evidence výkupu](004-evidence-vykupu.md), [ADR 005 — Stupeň se odvozuje z důkazů](../adr/005-stupen-se-odvoduje-z-dukazu.md), [architektura](../architektura.md#datový-model), [ROADMAP](../../ROADMAP.md) |
 
-> Dokument je smlouva pro implementaci I3. Popisuje, jak se stupeň A–D **odvozuje
-> z důkazů**, jak se mění stav kusu a co musí UI ukázat. Definice polí entit
-> nejsou zde — jsou v [architektuře](../architektura.md#datový-model), sem patří
-> jen to, co se mění.
+> Dokument popisuje implementovanou funkci I3. Popisuje, jak se stupeň A–D
+> **odvozuje z důkazů**, jak se mění stav kusu a co UI ukazuje. Definice polí
+> entit nejsou zde — jsou v [architektuře](../architektura.md#datový-model), sem
+> patří jen to, co se mění. Nevratné rozhodnutí „stupeň se nevolí" má vlastní
+> [ADR 005](../adr/005-stupen-se-odvoduje-z-dukazu.md).
 
 ## Zadání a cíl
 
@@ -71,6 +72,14 @@ Toto pořadí přímo realizuje dvě pravidla z 001:
 Výsledek 5 není chyba ani odhad: kus **zůstává ve stavu `v_repasu`** a UI musí
 říct, co chybí. Odvození vrací vždy i `duvod` — i když stupeň vznikne — a UI ho
 ukazuje pod hodnotou stupně.
+
+Kdy přesně stupeň nevznikne: **jen u kusu bez zásahu a bez čerstvého profilového
+průchodu.** U kusu, na kterém je zásah, pravidlo 2 odvodí nejméně stupeň `C`, i
+kdyby všechny starší testy padly mimo poslední zásah. Kus bez zásahu musí mít
+čerstvý profilový test s výsledkem `prosel`, jinak spadne na pravidlo 5; má-li ho,
+rozhoduje čerstvá vizuální kontrola (`B` při nalezené vadě, `A` bez vady).
+
+Toto rozhodnutí má vlastní [ADR 005](../adr/005-stupen-se-odvoduje-z-dukazu.md).
 
 `VysledekTestu` má hodnotu `casti` (částečně). Ta **nespouští pravidlo 1** —
 částečný průchod není selhání. Zároveň `casti` není `prosel`, takže profilový
@@ -146,6 +155,36 @@ v [Známé omezení](#známé-omezení) a [Následné kroky](#následné-kroky).
   přihlášení; kam se má podívat, je v
   [Bezpečnost a soukromí](#bezpečnost-a-soukromí).
 
+### Rozhodnutí, která vznikla až při implementaci
+
+Tato část zachycuje věci, které nebyly v návrhu rozhodnuty a které se ukázaly
+teprve při psaní kódu a testů. Jsou stejně závazné jako výšejší.
+
+- **Nulové náklady na zásah jsou povolené.** Rozsah je 0 až 100 000 Kč, záporná
+  hodnota i text jsou chyba. Nula znamená „nulové náklady" — čištění, utahování,
+  výměna dílu z vlastní zásoby nebo práce, kterou udělal přímo provozovatel, mají
+  skutečně nulový výdaj. Vynucovat kladnou hodnotu by znamenalo zapisovat umělou
+  částku jen proto, aby prošla validací, a v důkazech by pak byl údaj, který ve
+  skutečnosti neplatí. Oproti výkupní ceně (kde je nula chyba, protože kus musí
+  stát něco) je to vědomá odlišnost.
+- **Důkaz lze zapsat i na kus ve stavu `ohodnoceno` a stav se tím nemění.** Kus
+  může být ohodnocen a pak se na něm znovu pracuje; důkaz přijde, přechodu stavu
+  se tím nevznikne. Zápis na kus ve stavu `vystaveno`, `rezervovano` nebo
+  `prodano` je zakázán.
+- **`zapsatOhodnoceni` na kus ve stavu `vykoupeno` skončí chybou** s větou, že
+  nejdřív musí být zapsán zásah nebo test. Je to kontrola na úrovni serverové
+  akce, ne skrytí tlačítka: kus bez jediného důkazu nemá co ohodnotit a věta
+  z `odvodStupne` by jen opakovala, že chybí důkazy.
+- **Úspěch zásahu i testu vrací `kusId`, ne ID záznamu.** Repozitář vrací `void`
+  a ID zásahu ani testu nedává — UI ho nepotřebuje, potřebuje jen vědět, pod jakým
+  kusem se stránka překreslila. Úspěch ohodnocení vrací `{ stupen }`, protože ten
+  se v UI zobrazuje.
+- **Prázdné důkazy znamenají kus bez jakéhokoli stupně.** `odvodStupne` vrací
+  `duvod` říkající, že chybí zásah i testy; tlačítko potvrzení je neaktivní a
+  žádný záznam do historie hodnocení nevznikne. Kus zůstává `vykoupeno`, dokud
+  se na něm něco neudělá.
+
+
 ## Scénáře
 
 | # | Jako kdo     | Situace                                                     | Očekávaný výsledek |
@@ -156,11 +195,16 @@ v [Známé omezení](#známé-omezení) a [Následné kroky](#následné-kroky).
 | 4 | Provozovatel | Zapíše zásah s `nahradniDil` a funkční test, který prošel jen v ověřeném rozsahu | Odvozený stupeň `C`, u něj je vidět, co bylo vyměněno |
 | 5 | Provozovatel | Jakýkoli test skončí `selhal`                                 | Odvozený stupeň `D`, i kdyby profilový test prošel |
 | 6 | Provozovatel | Zkusí potvrdit stupeň, ale žádný důkaz neodpovídá             | Stupeň se neuloží, UI vysvětlí, co chybí, kus zůstává `v_repasu` |
-| 7 | Provozovatel | Po zásahu najde starý profilový test, který prošel před zásahem | Starý test se nehodnotí, stupeň se neodvodí, UI to vysvětlí |
+| 7 | Provozovatel | Po zásahu najde starý profilový test, který prošel před zásahem | Starý test se nehodnotí, takže `A` ani `B` nevznikne. Protože ale na kusu zásah je, pravidlo 2 odvodí nejméně stupeň `C`; `duvod` říká, že chybí čerstvý profilový test |
 | 8 | Provozovatel | U testu `funkcni` zaškrtne „nalezena vada"                    | Formulář to odmítne, test se neuloží |
 | 9 | Provozovatel | U zásahu typu `vymena` nezaškrtne `nahradniDil`               | Formulář to odmítne, zásah se neuloží |
 | 10 | Provozovatel | Odmítne potvrdit stupeň na kusu, který je už `ohodnoceno`  | Serverová akce skončí chybou, kus se nezmění |
 | 11 | Provozovatel | Otevře detail kusu, který ještě nemá žádný zásah ani test   | Prázdný stav s výzvou k zápisu, bez stupně |
+| 12 | Provozovatel | Zapíše zásah s nulovými náklady                               | Zásah se uloží, náklady budou `0 Kč`; záporné náklady formulář odmítne |
+| 13 | Provozovatel | Zapíše další důkaz na kus, který je už `ohodnoceno`          | Důkaz se uloží, kus zůstává `ohodnoceno` |
+| 14 | Provozovatel | Chce ohodnotit kus ve stavu `vykoupeno`, na kterém nic není   | Serverová akce odmítne a vysvětlí, že nejdřív musí být zásah nebo test |
+| 15 | Provozovatel | Otevře detail kusu, na kterém žádný důkaz neodpovídá pravidlům | Tlačítko potvrzení je neaktivní, UI vysvětlí, co doplnit, kus zůstává `v_repasu` |
+| 16 | Provozovatel | Otevře detail kusu ve stavu `vystaveno`                       | Formuláře se nezobrazí, zobrazí se věta, že kus je vystavený a zpět do Repasu se nevrací |
 
 ## Přechody stavů kusu
 
@@ -192,14 +236,22 @@ zde je jen to, co se mění.
   - `RepairTicket` získá `nahradniDil` (boolean) — rozhodnutí 3.
   - `StavKusu` a `VysledekTestu` se **nemění**.
   - `ConditionGrade` se nemění: `popis` nese `duvod` z odvození.
-- Migrace: nový soubor v `drizzle/` — přidání `typ_testu` a `nalezena_vada` do
+- Migrace: `drizzle/0001_repas-dukazy.sql` — přidání `typ_testu` a `nalezena_vada` do
   `test_evidence` a `nahradni_dil` do `repair_ticket`. Nové sloupce jsou
   `NOT NULL` s výchozí hodnotou, aby se daly doplnit i na existujících řádcích.
+  `typ_testu` přibývá s výchozí hodnotou `'profil'`, `nalezena_vada` a
+  `nahradni_dil` s výchozí hodnotou `false`. Migrace má přesně pět příkazů:
+  - `ALTER TABLE test_evidence ADD typ_testu text DEFAULT 'profil' NOT NULL;`
+  - `ALTER TABLE test_evidence ADD nalezena_vada integer DEFAULT false NOT NULL;`
+  - `CREATE INDEX test_evidence_kus_idx ON test_evidence (kus_id);`
+  - `ALTER TABLE repair_ticket ADD nahradni_dil integer DEFAULT false NOT NULL;`
+  - `CREATE INDEX repair_ticket_kus_idx ON repair_ticket (kus_id);`
 - **Oprava indexů:** `test_evidence` a `repair_ticket` dnes nemají index na
   `kus_id` (mají prázdné pole indexů), takže dotaz na důkazy jednoho kusu jde
-  přes celou tabulku. Migrace přidá `index("test_evidence_kus_idx").on(kus_id)`
-  a `index("repair_ticket_kus_idx").on(kus_id)`. Je to dnes nevšimnutý bug, tady se
-  opravuje, protože právě teď se podle `kus_id` poprvé filtruje.
+  přes celou tabulku. Migrace přidává `index("test_evidence_kus_idx").on(kus_id)`
+  a `index("repair_ticket_kus_idx").on(kus_id)` ve stejném souboru. Je to dnes
+  nevšimnutý bug, tady se opravuje, protože právě teď se podle `kus_id` poprvé
+  filtruje.
 - Vazba kus → hodnocení zůstává 1:N, historie se nepřepisuje.
 
 ## API/změny v kódu
@@ -309,6 +361,27 @@ export interface KusZRepasem {
 
 export function getKusZDetailem(id: ID): KusZRepasem | undefined;
 
+/** ID kusu generuje server. */
+export interface VstupZasahu {
+  kusId: ID;
+  typZasahu: TypZasahu;
+  popis: string;
+  nahradniDil: boolean;
+  /** Náklady v haléřích. */
+  naklady: number;
+  provedenoKdy: string;
+}
+
+/** ID kusu generuje server. */
+export interface VstupTestu {
+  kusId: ID;
+  nazevTestu: string;
+  typTestu: TypTestu;
+  vysledek: VysledekTestu;
+  nalezenaVada: boolean;
+  provedenoKdy: string;
+}
+
 export function zapsatZasah(vstup: VstupZasahu): void;
 export function zapsatTest(vstup: VstupTestu): void;
 export function zapsatOhodnoceni(vstup: {
@@ -318,14 +391,20 @@ export function zapsatOhodnoceni(vstup: {
 }): ConditionGrade;
 ```
 
+- `zasahy` a `testy` jsou sestupně podle `provedenoKdy` (při shodě rozhoduje vyšší
+  ID), `historieHodnoceni` sestupně podle `zhodnocenoKdy` a obsahuje i záznam
+  v poli `stupen`. `odvozeni` je výsledek `odvodStupne` nad právě načtenými
+  `zasahy` a `testy` — i když na kusu zatím nic není.
 - `zapsatZasah` a `zapsatTest` převezmou kus do `v_repasu` (je-li ve stavu
   `vykoupeno`) a zápis samotný provedou v téže transakci, jinak by zásah existoval
-  bez změny stavu.
-- `zapsatOhodnoceni` ověří, že kus je ve stavu `v_repasu`, přepíše ho na
-  `ohodnoceno` a vloží nový řádek hodnocení. **Stávající hodnocení se nepřepíše**,
-  jen vznikne nový.
+  bez změny stavu. Kus ve stavu `vystaveno`, `rezervovano` nebo `prodano` je
+  odmítnut; kus ve stavu `ohodnoceno` důkaz přijme a stav se nemění.
+- `zapsatOhodnoceni` ověří přechod stavem, přepíše `v_repasu` na `ohodnoceno`
+  (u `ohodnoceno` jde o no-op) a vloží nový řádek hodnocení. **Stávající hodnocení
+  se nepřepíše**, jen vznikne nový. `duvod` z odvození jde do `popis`.
 - Stupeň se v repovrstvě **neodvozuje** ani nepočítá. Repozitář přijímá hotový
-  `stupen` + `duvod` z doménové vrstvy a zapisuje je.
+  `stupen` + `duvod` z doménové vrstvy a zapisuje je. `getKusZDetailem` naopak
+  volá `odvodStupne` z domény, aby nevznikla druhá implementace pravidel.
 - Chyby nesrovnalosti (neexistující kus, nedovolený přechod, zásah na kusu ve
   stavu `vystaveno`) se vyhazují jako `ChybaZapisu` — stejně jako v I2.
 - `getKus()` zůstává a `getKusy()` se nemění; seznam skladu pracuje dál přes
@@ -334,26 +413,93 @@ export function zapsatOhodnoceni(vstup: {
 ### `src/server/actions/repas.ts` (nový)
 
 Serverové akce ve stylu `src/server/actions/vykup.ts` — `ChybyFormulare` se
-vrací jako návratová hodnota, ne vyhozená výjimka:
+vrací jako návratová hodnota, ne vyhozená výjimka. `kusId` je u všech tří akcí
+**první parametr**, aby se daly svázat přes `.bind(null, kusId)` v klientské
+komponentě s `useActionState` a aby se ID kusu **neposílalo z klienta v
+`FormData`** — pochází z parametrů routy.
 
-- `zapsatZasah(_predchozi, formulare)` — po zápisu `revalidatePath` na `/sklad`,
-  detail kusu a `/nastenka` (nástěnka zobrazuje poslední zásahy).
-- `zapsatTest(_predchozi, formulare)` — totéž.
-- `ohodnotitKus(_predchozi, formulare)` — volá `odvodStupne` nad důkazy načtenými
-  v repozitáři a zapisuje výsledek. Pokud vyjde `stupen: null`, **nezapisuje
-  nic** a vrací `obecna` s `duvod`.
+```ts
+export interface StavFormulareZasahu {
+  uspech?: { kusId: string };
+  chyby?: ChybyFormulareZasahu;
+  obecna?: string;
+}
+
+export interface StavFormulareTestu {
+  uspech?: { kusId: string };
+  chyby?: ChybyFormulareTestu;
+  obecna?: string;
+}
+
+export interface StavFormulareOhodnoceni {
+  uspech?: { stupen: StupenStavu };
+  obecna?: string;
+}
+
+export async function zapsatZasah(
+  kusId: string,
+  _predchozi: StavFormulareZasahu,
+  formulare: FormData,
+): Promise<StavFormulareZasahu>;
+
+export async function zapsatTest(
+  kusId: string,
+  _predchozi: StavFormulareTestu,
+  formulare: FormData,
+): Promise<StavFormulareTestu>;
+
+export async function ohodnotitKus(
+  kusId: string,
+  _predchozi: StavFormulareOhodnoceni,
+  _formulare: FormData,
+): Promise<StavFormulareOhodnoceni>;
+```
+
+Proč jsou stavová rozhraní taková, jaká jsou:
+
+- Zápis zásahu a zápis testu vrací `uspech: { kusId }`. Repozitář vrací `void` a ID
+  záznamu nedává; UI ID zásahu nepotřebuje, potřebuje vědět, **pod jakým kusem** se
+  stránka překreslila.
+- Ohodnocení vrací `uspech: { stupen }`, protože stupeň se v UI zobrazuje — a je to
+  stupeň **odvozený na serveru**, ne hodnota poslaná klientem.
+- `ohodnotitKus` má `_formulare`, které se k ničemu nepoužije. `useActionState` a
+  `.bind` mají pevný tvar, takže parametr ve signatuře zůstane, ale hodnota se
+  zahazuje (`void _formulare`).
+
+Chování akcí:
+
+- `zapsatZasah` a `zapsatTest` validují `FormData` znovu na serveru a po zápisu
+  volají `revalidatePath` na `/sklad`, `/sklad/[id]` a `/nastenka` (nástěnka
+  zobrazuje poslední zásahy a přehled skladu). Při neúspěchu se nic nevyčistí,
+  protože data se nezměnila.
+- `ohodnotitKus` volá `odvodStupne` nad důkazy načtenými v repozitáři a zapisuje
+  výsledek. Pokud vyjde `stupen: null`, **nezapisuje nic** a vrací `obecna` s
+  `duvod`. Kus ve stavu `vykoupeno` odmítne ještě před odvozením; kusy
+  `vystaveno` / `rezervovano` / `prodano` jsou odmítnuty s větou, že se zpět do
+  Repasu nevrací.
 - Akce **nečtou `stupen` z `FormData`**. Pokud by ve formuláři byl, musí být
-  odmítnut — klientem poslaný stupeň se ignoruje.
+  ignorován — klientem poslaný stupeň je jen návrh, který jde podvrhnout.
+- Očekávané chyby (`ChybaZapisu`) se propuknou do `obecna` s textem pro
+  provozovatele; neočekávané chyby databáze se do UI nepropagují, aby neprozradily
+  detaily o instalaci.
 
-Soubory UI:
+Soubory UI, které vznikly:
 
 - `src/app/(app)/sklad/[id]/page.tsx` — serverová komponenta, detail kusu.
-- Odkaz na detail kusu ze seznamu `/sklad` — sloupec s ID nebo název kusu jako
-  `next/link`.
-- `src/components/formular-zasahu.tsx` a `src/components/formular-testu.tsx` —
-  klientské komponenty s `useActionState` ve stylu `formular-vykupu.tsx`.
+  `params` se v Next 16 předává jako promise, takže se `await`-uje; neexistující
+  kus končí `notFound()`.
+- `src/components/formular-zasahu.tsx`, `src/components/formular-testu.tsx` a
+  `src/components/formular-ohodnoceni.tsx` — klientské komponenty s
+  `useActionState` ve stylu `formular-vykupu.tsx`, s `kusId` svázaným přes
+  `.bind(null, kusId)`.
+- Odkaz na detail kusu ze seznamu `/sklad` v `src/components/filtr-skladu.tsx` —
+  `next/link` na `/sklad/[id]`.
 - Legenda A–D se skládá z `STUPEN_POPIS` v `src/lib/domain/slovnik.ts`, ne z
-  nového slovníku v komponentě.
+  slovníku v komponentě. Vedle písmene je vždy i textová popiska, protože samotné
+  písmeno ani barva stupeň nevysvětlí.
+- `src/components/formular-ohodnoceni.tsx` obsahuje žádný vstup pro stupeň. Pole
+  pro výběr tu není a být nesmí; tlačítko je neaktivní, dokud z důkazů stupeň
+  neplyne.
 
 ## UI
 
@@ -378,8 +524,8 @@ Formuláře:
 
 | Formulář   | Pole                                                                 | Poznámka |
 | ---------- | -------------------------------------------------------------------- | -------- |
-| Zásah      | typ zásahu, popis, `nahradniDil` (jen u `vymena`), náklady, datum      | Náklady se ukládají v haléřích, zadávají v korunách jako ve výkupu |
-| Test       | název testu, typ testu, výsledek, `nalezenaVada` (jen u `vizualni`), datum | Pole `nalezenaVada` se zobrazí až po výběru typu `vizualni` |
+| Zásah      | typ zásahu, popis, `nahradniDil` (jen u `vymena`), náklady, datum      | Náklady se ukládají v haléřích, zadávají v korunách jako ve výkupu; povoleno je 0 až 100 000 Kč |
+| Test       | název testu, typ testu, výsledek, `nalezenaVada` (jen u `vizualni`), datum | Pole `nalezenaVada` se zobrazí až po výběru typu `vizualni`; u ostatních typů je ve formuláři vůbec |
 
 **Formulář neobsahuje pole pro stupeň.** Ani jeden. Stupeň je výstup odvození.
 
@@ -445,11 +591,12 @@ Konvence: `cokoliv.test.ts` vedle testovaného souboru.
 
 | Úroveň      | Co se testuje                                                                                             | Kde |
 | ----------- | --------------------------------------------------------------------------------------------------------- | --- |
-| Unit        | `odvodStupne` pro všech pět pravidel, včetně prázdného seznamu důkazů, jediného selhání, čerstvého testu po zásahu vs. starého testu před zásahem, kombinace zásahu + částečného testu (`C`), profil + vizuální vada (`B`), profil + čistá vizuálka (`A`), `vysledek: "casti"` | `src/lib/domain/repas.test.ts` |
+| Unit        | `odvodStupne` pro všech pět pravidel, včetně prázdného seznamu důkazů, jediného selhání, kombinace zásahu + částečného testu (`C`), profil + vizuální vada (`B`), profil + čistá vizuálka (`A`), `vysledek: "casti"` | `src/lib/domain/repas.test.ts` |
+| Unit        | **starý test před zásahem neudělí `A` ani `B`** — je starý, takže se nehodnotí, a protože zásah existuje, spadne to na pravidlo 2 a vyjde nejméně `C`. Testuje se, že starý důkaz nepromění stupeň, ne že stupeň nevznikne | `src/lib/domain/repas.test.ts` |
 | Unit        | `muzzePrejitStav` a `zmenaStavu` včetně nepovoleného přechodu a návratu z `vystaveno` do `v_repasu`          | `src/lib/domain/repas.test.ts` |
-| Unit        | `validujZasah` a `validujTest`: `nalezenaVada` mimo typ `vizualni`, `nahradniDil` u `vymena`, prázdná pole, datum v budoucnu | `src/lib/domain/repas.test.ts` |
-| Integrace   | `zapsatZasah` a `zapsatTest` přesunou kus do `v_repasu`, `zapsatOhodnoceni` přepíše stav na `ohodnoceno` a nechá staré hodnocení být, `getKusZDetailem` vrátí chronologii, odmítnutí zásahu na kusu `vystaveno` | `src/server/repo/repas.test.ts` |
-| E2E / ruční | prázdný detail kusu, průchod všemi pěti pravidly v UI, zákaz ručního zadání stupně, chyba při potvrzení bez důkazů | Ručně v `pnpm dev`; ověření kliknutí v prohlížeči v tomto prostředí možné není, protože prohlížeč není dostupný |
+| Unit        | `validujZasah` a `validujTest`: `nalezenaVada` mimo typ `vizualni`, `nahradniDil` u `vymena`, prázdná pole, datum v budoucnu, nulové náklady (povoleno) a záporné (odmítnuto) | `src/lib/domain/repas.test.ts` |
+| Integrace   | `zapsatZasah` a `zapsatTest` přesunou kus do `v_repasu`, důkaz na kusu `ohodnoceno` se uloží bez změny stavu a důkaz na kusu `vystaveno` je odmítnut, `zapsatOhodnoceni` přepíše stav na `ohodnoceno` a nechá staré hodnocení být, `zapsatOhodnoceni` na kusu `vykoupeno` skončí chybou, `getKusZDetailem` vrátí chronologii | `src/server/repo/repas.test.ts` |
+| E2E / ruční | prázdný detail kusu, průchod všemi pěti pravidly v UI, zákaz ručního zadání stupně, chyba při potvrzení bez důkazů, neaktivní tlačítko na kusu `vystaveno` | Ručně v `pnpm dev`; **ověření v prohlížeči nebylo provedeno** — v tomto prostředí není prohlížeč dostupný, takže vizuální stav, rozvržení na úzkém displeji ani reakce na kliknutí zůstávají neověřené (totéž platí pro I2) |
 
 ## Bezpečnost a soukromí
 
@@ -512,6 +659,16 @@ Nic se nesbírá.
 - Bez zásahu jde stupeň `A` nebo `B` získat jen z profilového testu a vizuální
   kontroly. Kus `vykoupeno`, na kterém nikdo nepracoval, nemá jak mít stupeň —
   to je zamýšlené, ne chybějící krok.
+- **Žádný stupeň nevznikne jen kusu bez zásahu a bez čerstvého profilového
+  průchodu.** Na kusu, kde zásah je, odvodí pravidlo 2 nejméně `C` — i kdyby
+  jediným důkazem byl starý profilový průchod z doby před zásahem. Stupeň tedy po
+  zásahu bez čerstvého testu nevznikne jako „žádný", ale jako `C`, jehož `duvod`
+  říká, že chybí čerstvý profilový test.
+- **Ruční ověření v prohlížeči neproběhlo.** V prostředí, kde I3 vznikalo, není
+  dostupný prohlížeč, takže vizuální stav obrazovky, rozvržení na úzkém displeji
+  a reakce na kliknutí nebyly ověřeny (totéž platí pro I2 a jeho formulář
+  výkupu). Ověřeno je chování vrstev pod obrazovkou — domény a repozitáře — testem.
+  Viz [Testy](#testy).
 - Jeden zásah i jeden test patří jednomu kusu; není možné zapsat zásah na více kusů
   jedním zápisem (výměna ventilátorů ve dvou kusech = dva záznamy).
 
@@ -530,21 +687,23 @@ Nic se nesbírá.
   bez omezení, datum posledního testu je jen informace pro provozovatele.
 - Zpřesnit `STUPEN_POPIS` v `src/lib/domain/slovnik.ts`, pokud legenda A–D
   ukáže, že slovník nestačí srozumitelně vysvětlit rozdíl B proti C.
-- Doplnit tento dokument do mapy v `docs/README.md` a `ROADMAP.md` — součást
-  implementačního PR, ne této iterace dokumentace.
+- Ruční odzkus v prohlížeči, až bude dostupný: průchod všemi pěti pravidly, zákaz
+  ručního zadání stupně a rozvržení detailu kusu na úzkém displeji.
 
 ## Checklist před mergem
 
 - [x] Dokument vytvořen z této šablony, název ve tvaru `NNN-kebab-nazev.md`
-- [ ] Sekce `Datový dopad` a `API/změny v kódu` odpovídají skutečnosti
-      (doplní implementační PR)
+- [x] Sekce `Datový dopad` a `API/změny v kódu` odpovídají skutečnosti
 - [x] Status a Datum aktualizované
-- [ ] `docs/README.md` obsahuje řádek s tímto dokumentem, pokud je v mapě uveden
-- [ ] `docs/architektura.md` aktualizovaný, pokud vznikla nová entita, vrstva,
-      routa nebo bezpečnostní požadavek (nové sloupce a indexy vznikají v I3)
-- [ ] `ROADMAP.md` aktualizovaný
-- [ ] Důležité technické rozhodnutí zapsáno jako ADR v `docs/adr/`
-- [ ] `pnpm check` prochází (lint, typecheck, testy)
+- [x] `docs/README.md` obsahuje řádek s tímto dokumentem
+- [x] `docs/architektura.md` aktualizovaný — vznikly nové sloupce, indexy, vrstva
+      (`src/lib/domain/repas.ts`), vrstva akcí, routa `/sklad/[id]` a bezpečnostní
+      požadavek na autorizaci
+- [x] `ROADMAP.md` aktualizovaný — I3 označena za hotovou
+- [x] Důležité technické rozhodnutí zapsáno jako ADR v `docs/adr/` —
+      [ADR 005](../adr/005-stupen-se-odvoduje-z-dukazu.md)
+- [ ] `pnpm check` prochází (lint, typecheck, testy) — běží jako zvláštní finální
+      verifikace mimo tuto iteraci dokumentace
 - [x] Patička `Poslední aktualizace: YYYY-MM-DD` odpovídá dnešnímu datu
 
 Poslední aktualizace: 2026-09-29

@@ -151,6 +151,7 @@ function main() {
         kusId: zasah.kusId,
         typZasahu: zasah.typZasahu,
         popis: zasah.popis,
+        nahradniDil: zasah.nahradniDil,
         naklady: zasah.naklady,
         provedenoKdy: zasah.provedenoKdy,
       })),
@@ -163,7 +164,9 @@ function main() {
         id: idPro("tst", test.id),
         kusId: test.kusId,
         nazevTestu: test.nazevTestu,
+        typTestu: test.typTestu,
         vysledek: test.vysledek,
+        nalezenaVada: test.nalezenaVada,
         provedenoKdy: test.provedenoKdy,
       })),
     )

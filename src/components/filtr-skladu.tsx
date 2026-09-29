@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/badge";
@@ -186,7 +187,14 @@ export function FiltrSkladu({ zaznamy }: { zaznamy: KusZDetailem[] }) {
             {vysledky.map((zaznam) => (
               <TabulkaRadek key={zaznam.kus.id}>
                 <TabulkaBunka hlavni>
-                  {zaznam.component.vyrobce} {zaznam.component.model}
+                  {/* Název kusu je hlavní navigace do detailu — musí mít
+                      viditelný focus ring i na klávesnici. */}
+                  <Link
+                    href={`/sklad/${zaznam.kus.id}`}
+                    className="rounded underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:focus-visible:outline-zinc-50"
+                  >
+                    {zaznam.component.vyrobce} {zaznam.component.model}
+                  </Link>
                   <span className="block text-xs font-normal text-zinc-400 dark:text-zinc-500">
                     {formatDate(zaznam.kus.vytvorenoKdy)}
                   </span>

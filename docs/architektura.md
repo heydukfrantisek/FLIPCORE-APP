@@ -20,9 +20,10 @@ Skutečná struktura adresářů:
 src/
   app/            routy (App Router), layouty, globalni styly
     (app)/        skupina rout se spolecnou kostrou aplikace (nastenka, sklad, ...)
+      sklad/[id]/ detail kusu - zapis zasahu, testu a odvozeneho stupne
   components/     slozene UI komponenty (sdilene i specificke pro domenu)
   lib/
-    domain/       typy entit a ciste obchodni vypocty (sklad, finance, sestavy)
+    domain/       typy entit a ciste obchodni vypocty (sklad, finance, sestavy, repas, vykup)
     format.ts     formatovani meny, cisel, procent a dat pro UI
   db/            schema, klient a seed - nikdy se neimportuje z klientske komponenty
   server/
@@ -30,6 +31,18 @@ src/
     repo/         repository vrstva - jediny pristup k datum
 docs/             tato dokumentace
 ```
+
+Kromě vrstev uvedených výše vznikly v iteraci I3 (repas a ohodnocení) tyto
+konkrétní moduly:
+
+| Soubor                               | Vrstva | Odpovědnost |
+| ------------------------------------ | ------ | ----------- |
+| `src/lib/domain/repas.ts`            | Aplikační logika | Čisté odvození stupně A–D z důkazů, povolené přechody stavů kusu a Zod schémata formulářů zásahu a testu. Bez importu databáze a bez `server-only`, proto se testuje bez serveru |
+| `src/lib/domain/repas.test.ts`       | Aplikační logika | Testy `odvodStupne`, přechodů stavů a validace formulářů |
+| `src/server/actions/repas.ts`        | Serverové akce | `zapsatZasah`, `zapsatTest`, `ohodnotitKus`; chyby se vrací jako návratová hodnota, po zápisu `revalidatePath` |
+| `src/server/repo/repas.test.ts`      | Datová vrstva | Integrace nad skutečnou SQLite: zápis důkazů, přechody stavů, historie hodnocení |
+| `src/app/(app)/sklad/[id]/page.tsx`  | Rozhraní (UI) | Serverová komponenta detailu kusu: identifikace, odvozený stupeň, důkazy, historie zásahů a hodnocení, legenda A–D |
+| `src/components/formular-zasahu.tsx`, `src/components/formular-testu.tsx`, `src/components/formular-ohodnoceni.tsx` | Rozhraní (UI) | Klientské formuláře s `useActionState`; `kusId` se váže přes `.bind(null, kusId)` a neposílá se z klienta v `FormData` |
 
 ## Klíčová rozhodnutí
 
@@ -100,6 +113,18 @@ Krátké záznamy ve formátu kontext / rozhodnutí / důsledky. Formální záz
 - **Kontext:** Ceny se sčítají, porovnávají a násobí procenty; float by generoval rozdíly v haléřích.
 - **Rozhodnutí:** Typ `Penize` je celé číslo v haléřích. Formátování na českou měnu dělá výhradně `formatCurrency` v `src/lib/format.ts`.
 - **Důsledky:** Procenta a poměry jsou výsledek dělení až v okamžiku zobrazení. Procentní sazební výpočty zaokrouhlují na celé haléře (`spocitatDph`).
+
+### Stupeň A–D se odvozuje z důkazů, nevolí se
+
+- **Kontext:** Škála stavového hodnocení má nahradit odhad úsudkem opřeným o záznamy. Kdyby provozovatel vybíral písmeno ze seznamu, škála by zapisovala odhad do tabulky a klient by mohl podvrhnout jedinou hodnotu v celé datové vrstvě.
+- **Rozhodnutí:** Stupeň je výsledek čisté funkce `odvodStupne(doklady)` v `src/lib/domain/repas.ts` nad zásahy a testy kusu. **Žádný formulář nemá pole pro stupeň a žádná serverová akce stupeň z `FormData` nečte**; akce si ho spočítá sama. Pravidla žijí jednou — repozitář stupeň nepočítá, dostane hotový a uloží ho. Rozhodnutí má vlastní záznam v [ADR 005](adr/005-stupen-se-odvoduje-z-dukazu.md).
+- **Důsledky:** Přechod stavu a odvození stupně jsou čisté funkce testované bez serveru. Hodnotí se jen důkazy od posledního zásahu kusu včetně jeho data, takže starý test nepromění stupeň kusu, na kterém se mezitím pracovalo. Oprava chybného stupně je nový řádek v `ConditionGrade`, ne `UPDATE` — historie hodnocení zůstává dohledatelná.
+
+### Autorizace zápisu je dluh, ne výjimka
+
+- **Kontext:** Aplikace je dnes jednoprovazorová, takže ani `zapsatVykup`, ani `zapsatZasah` / `zapsatTest` / `ohodnotitKus` nekontrolují relaci.
+- **Rozhodnutí:** Bez přihlášení je to přijaté omezení, ne návrh. Při zavedení přihlášení **musí každá akce v `src/server/actions/repas.ts` začít kontrolou relace a ověřením role**, stejně jako `src/server/actions/vykup.ts`. Skrytí tlačítka není kontrola.
+- **Důsledky:** U zápisu zásahu a testu stačí ověřit, že relace existuje; u `ohodnotitKus` je kromě toho důležitá role, protože hodnocení je věc, kterou může udělit provozovatel, ne zákazník. Výpočet stavu kusu v doménové vrstvě zůstává beze změny — autorizace je kontrola nad akcí, ne součást pravidel.
 
 ## Datový model
 
@@ -172,31 +197,41 @@ repozitář ho doplní při čtení.
 
 ### RepairTicket (záznam repasu)
 
-Historie zásahů na kus. Vztah ke kusu je 1:N — historie přežívá změnu vlastnictví i opakované zveřejnění.
+Historie zásahů na kus. Vztah ke kusu je 1:N — historie přežívá změnu vlastnictví i opakované zveřejnění. Zavedeno v [dokumentu funkce 003](funkce/003-kus-a-persistence.md), doplněno o `nahradniDil` v [dokumentu funkce 005](funkce/005-repas-a-ohodnoceni.md).
 
 | Pole          | Typ            | Poznámka |
 | ------------- | -------------- | -------- |
 | `id`          | id             | Primární klíč |
-| `kusId`       | vazba          | Který kus se zásahu týká |
+| `kusId`       | vazba          | Který kus se zásahu týká; index `repair_ticket_kus_idx` |
 | `typZasahu`   | enum           | Čištění, výměna dílu, oprava, testování |
 | `popis`       | text           | Co se udělalo a proč |
-| `nahradniDil` | vazba volitelná | Použitý náhradní díl, pokud se měnilo |
-| `provedlId`   | vazba          | Kdo zásah provedl |
-| `provedenoKdy`| čas            | Časová razítka |
+| `nahradniDil` | boolean        | `true`, pokud se měnil díl — nese informaci, **co** bylo vyměněno a co zůstalo původní. U typu `vymena` je povinné `true`, jinak je to rozpor a validace zápisu ho odmítne |
+| `naklady`     | celé číslo v haléřích | Náklady zásahu; nula je povolená a znamená „nulové náklady" |
+| `provedlId`   | vazba          | Kdo zásah provedl (v I3 nevyplněné — tabulka `user` zatím neexistuje) |
+| `provedenoKdy`| čas            | Časová razítka; určují, které důkazy jsou ještě čerstvé |
+
+Index `repair_ticket_kus_idx` na `kus_id` přidal migrační soubor
+`drizzle/0001_repas-dukazy.sql`; do té doby dotaz na zásahy jednoho kusu šel přes
+celou tabulku.
 
 ### TestEvidence (důkaz z testu)
 
-Podklady, na kterých stavové hodnocení stojí. Bez nich nelze kus vydávat jako ověřený (viz [vize — principy](vize.md#principy)).
+Podklady, na kterých stavové hodnocení stojí. Bez nich nelze kus vydávat jako ověřený (viz [vize — principy](vize.md#principy)). Doplněno o `typTestu` a `nalezenaVada` v [dokumentu funkce 005](funkce/005-repas-a-ohodnoceni.md).
 
 | Pole            | Typ            | Poznámka |
 | --------------- | -------------- | -------- |
 | `id`            | id             | Primární klíč |
-| `kusId`         | vazba          | Který kus se týká důkazu |
-| `typTestu`      | enum           | Co se ověřovalo |
+| `kusId`         | vazba          | Který kus se týká důkazu; index `test_evidence_kus_idx` |
+| `nazevTestu`    | text           | Název testu tak, jak ho provozovatel zapsal |
+| `typTestu`      | enum           | **Co test dokazuje**: `profil` (funkční test celého výkonového profilu), `funkcni` (funkční test v rozsahu, který dovolil zásah), `vizualni` (vizuální kontrola). Bez typu nelze odvodit stupeň — jen „test" neříká, kterou věc potvrzuje |
 | `vysledek`      | enum           | Prošel / Selhal / Částečně |
-| `naměřenéHodnoty`| strukturované | Výsledky měření |
-| `priloha`       | odkaz na soubor | Snímek nebo výstup testu |
-| `provedlKdy`    | čas            | Časová razítka |
+| `nalezenaVada`  | boolean        | Zaznamenané zjištění při vizuální kontrole, zda byla vada nalezena — **měření, ne úsudek provozovatele**. Smysluplné jen u `typTestu: "vizualni"`, u ostatních vždy `false`; zápis vady mimo vizuální kontrolu validace odmítne, protože by tiše změnil odvozený stupeň |
+| `naměřenéHodnoty`| strukturované | Výsledky měření (v I3 zatím nevyužito) |
+| `priloha`       | odkaz na soubor | Snímek nebo výstup testu (v I3 zatím nevyužito — otevřená otázka) |
+| `provedenoKdy`  | čas            | Časová razítka; spolu s datem posledního zásahu určují, které důkazy se hodnotí |
+
+Index `test_evidence_kus_idx` na `kus_id` přidal migrační soubor
+`drizzle/0001_repas-dukazy.sql`.
 
 ### Seller (bazar / prodejce)
 
@@ -297,7 +332,8 @@ Návrh, připravený pro použití s App Routerem. Skutečné routy vzniknou pos
 | Routa         | Obsah |
 | ------------- | ----- |
 | `/nastenka`   | Souhrn skladu, financí, objednávek, sestav a posledních zásahů |
-| `/sklad`      | Kusy ve skladu s filtrem, marží a rozpadem podle hodnocení |
+| `/sklad`      | Kusy ve skladu s filtrem, marží a rozpadem podle hodnocení; odkaz na detail kusu |
+| `/sklad/[id]` | Detail jednoho kusu: identifikace, odvozený stupeň s důvodem, důkazy, historie zásahů a hodnocení, legenda A–D, formuláře pro zápis zásahu a testu. Existuje od [dokumentu funkce 005](funkce/005-repas-a-ohodnoceni.md) |
 | `/finance`    | Příjmy, výdaje, DPH a přehled po měsících |
 | `/sestavy`    | Sestavy, kontrola kompatibility a porovnání s rozpočtem |
 | `/nastaveni`  | Obchod, rozpočty kategorií, DPH a skladová rezerva (jen pro čtení) |

@@ -64,26 +64,53 @@ export const stavyHodnoceni = sqliteTable(
   (tabulka) => [index("condition_grade_kus_idx").on(tabulka.kusId)],
 );
 
-export const zasahy = sqliteTable("repair_ticket", {
-  id: text("id").primaryKey(),
-  kusId: text("kus_id")
-    .notNull()
-    .references(() => kusy.id),
-  typZasahu: text("typ_zasahu").notNull(),
-  popis: text("popis").notNull(),
-  naklady: halere("naklady").notNull(),
-  provedenoKdy: text("provedeno_kdy").notNull(),
-});
+export const zasahy = sqliteTable(
+  "repair_ticket",
+  {
+    id: text("id").primaryKey(),
+    kusId: text("kus_id")
+      .notNull()
+      .references(() => kusy.id),
+    typZasahu: text("typ_zasahu").notNull(),
+    popis: text("popis").notNull(),
+    /**
+     * `true`, pokud se měnil díl. U `typ_zasahu: "vymena"` je povinné `true` —
+     * bez toho stupni `C` nelze vysvětlit, co bylo vyměněno a co zůstalo původní.
+     */
+    nahradniDil: integer("nahradni_dil", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    naklady: halere("naklady").notNull(),
+    provedenoKdy: text("provedeno_kdy").notNull(),
+  },
+  (tabulka) => [index("repair_ticket_kus_idx").on(tabulka.kusId)],
+);
 
-export const dukazyTestu = sqliteTable("test_evidence", {
-  id: text("id").primaryKey(),
-  kusId: text("kus_id")
-    .notNull()
-    .references(() => kusy.id),
-  nazevTestu: text("nazev_testu").notNull(),
-  vysledek: text("vysledek").notNull(),
-  provedenoKdy: text("provedeno_kdy").notNull(),
-});
+export const dukazyTestu = sqliteTable(
+  "test_evidence",
+  {
+    id: text("id").primaryKey(),
+    kusId: text("kus_id")
+      .notNull()
+      .references(() => kusy.id),
+    nazevTestu: text("nazev_testu").notNull(),
+    /**
+     * Co test dokazuje: `"profil"` (celý výkonový profil), `"funkcni"` (rozsah
+     * dovolený zásahem) nebo `"vizualni"` (vizuální kontrola). Bez typu nelze
+     * stupeň odvodit — z „prošel“ u libovolného testu by nevadilo, co bylo ověřeno.
+     */
+    typTestu: text("typ_testu")
+      .notNull()
+      .default("profil"),
+    vysledek: text("vysledek").notNull(),
+    /** Zaznamenané zjištění při vizuální kontrole; jen u typu `vizualni`, u ostatních vždy `false`. */
+    nalezenaVada: integer("nalezena_vada", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    provedenoKdy: text("provedeno_kdy").notNull(),
+  },
+  (tabulka) => [index("test_evidence_kus_idx").on(tabulka.kusId)],
+);
 
 export const sestavy = sqliteTable("build", {
   id: text("id").primaryKey(),

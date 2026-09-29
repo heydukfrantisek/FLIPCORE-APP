@@ -33,6 +33,14 @@ Konkrétní číslované dokumenty funkce:
 | [002-zakladni-sablona-aplikace](funkce/002-zakladni-sablona-aplikace.md) | infrastruktura | Náhled |
 | [003-kus-a-persistence](funkce/003-kus-a-persistence.md) | infrastruktura | Rozpracováno |
 | [004-evidence-vykupu](funkce/004-evidence-vykupu.md) | sklad | Rozpracováno |
+| [005-repas-a-ohodnoceni](funkce/005-repas-a-ohodnoceni.md) | repas | Implementováno |
+
+Konkrétní záznamy architektonických rozhodnutí:
+
+| Dokument                                                        | Téma                            | Status  |
+| --------------------------------------------------------------- | ------------------------------- | ------- |
+| [002-sqlite-a-drizzle-pro-ukazkove-funkce](adr/002-sqlite-a-drizzle-pro-ukazkove-funkce.md) | SQLite a Drizzle pro ukázkovou funkci výkupu | Přijato |
+| [005-stupen-se-odvoduje-z-dukazu](adr/005-stupen-se-odvoduje-z-dukazu.md) | Stupeň A–D se odvozuje z důkazů, nedá se zvolit ručně | Přijato |
 
 ## Jak dokumentaci aktualizovat
 

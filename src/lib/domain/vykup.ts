@@ -69,7 +69,7 @@ export function prevodCenyNaHalere(vstup: string): number | null {
 }
 
 /** Datum ve tvaru `RRRR-MM-DD`, které skutečně existuje. */
-function jePlatneDatum(iso: string): boolean {
+export function jePlatneDatum(iso: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
     return false;
   }

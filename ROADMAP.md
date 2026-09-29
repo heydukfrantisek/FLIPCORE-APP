@@ -118,20 +118,58 @@ Platba, objednávky, nákupní košík, import od prodejců, notifikace.
 
 Cíl: mít jednotný proces a škálu, podle níž je kus označen jako použitý v katalogu. Velikost: **M**.
 
-### Data
+### Iterace I3 — repas a ohodnocení (HOTOVO)
 
-- [ ] Škála `ConditionGrade` (viz níže) s verzí a možností rozšíření bez mazání historie.
-- [ ] `RepairTicket` jako workflow: `received` → `diagnostics` → `repair` → `testing` →
-      `grading` → `done`, s přechody omezenými podle role.
-- [ ] Evidence testů na ticketu: krok, výsledek (`pass`/`fail`), poznámka, čas, autor.
-- [ ] Checklist kroků per typ komponenty (např. CPU = funkční test + teplotní zátěž).
+Zapsáno 2026-09-29. Viz [dokument funkce 005](docs/funkce/005-repas-a-ohodnoceni.md)
+a [ADR 005](docs/adr/005-stupen-se-odvoduje-z-dukazu.md). Vzniklo:
+
+- **Stupeň A–D se odvozuje z důkazů, nedá se zvolit ručně.** Čistá funkce
+  `odvodStupne(doklady)` v `src/lib/domain/repas.ts` nad zásahy a testy kusu.
+  Pět pravidel v pevném pořadí, první splněné vyhrává; hodnotí se jen důkazy od
+  posledního zásahu. Žádný formulář nemá pole pro stupeň a žádná serverová akce
+  stupeň z `FormData` nečte.
+- **Záznam zásahů a testů.** Serverové akce `zapsatZasah` a `zapsatTest` zapisují
+  důkaz a v téže transakci přesunou kus `vykoupeno → v_repasu`. Migrace
+  `drizzle/0001_repas-dukazy.sql` přidala `test_evidence.typ_testu`,
+  `test_evidence.nalezena_vada`, `repair_ticket.nahradni_dil` a indexy
+  `test_evidence_kus_idx` a `repair_ticket_kus_idx`.
+- **Detail kusu s historií** na `/sklad/[id]`: identifikace, odvozený stupeň s
+  důvodem, důkazy, historie zásahů a hodnocení, legenda A–D, formuláře pro zápis.
+  Odkaz na detail vede ze seznamu skladu.
+- **Legenda A–D** z `STUPEN_POPIS` v `src/lib/domain/slovnik.ts`, včetně věty, že
+  stupeň se odvozuje z důkazů.
+- **`ohodnoceno → vystaveno` se přesouvá do I4**, kde doplní `POVOLENE_PRECHODY`
+  spolu s prodejní cenou a filtrem podle stupně.
+
+Otevřené z I3 (nejde o hotovou práci, viz oddíl
+[Otevřené otázky](#otevřené-otázky-a-nejistoty)): časová platnost hodnocení,
+ukládání příloh důkazů, autorizace akcí, workflow zásahu a seznam povinných
+testů pro konkrétní kategorii.
 
 ### UI
 
-- [ ] Detail ticketu se stavovým průběhem a historií změn.
-- [ ] Formulář pro zapsání kroku a testu, viditelný jen příslušné roli.
-- [ ] Šipka/legenda škály stavu (barevné značení A–D + vysvětlivka) dostupná i mimo admin.
+- [x] Detail ticketu se stavovým průběhem a historií změn. (I3: detail kusu na
+      `/sklad/[id]` — odvozený stupeň, důkazy, historie zásahů a hodnocení, legenda
+      A–D, viz [dokument funkce 005](docs/funkce/005-repas-a-ohodnoceni.md))
+- [ ] Formulář pro zapsání kroku a testu, viditelný jen příslušné roli. (I3: oba
+      formuláře existují, ale viditelnost podle role ne — autorizace je dluh)
+- [x] Šipka/legenda škály stavu (barevné značení A–D + vysvětlivka) dostupná i mimo admin.
+      (I3: legenda na detailu kusu ze `STUPEN_POPIS`, stupeň se odvozuje z důkazů a
+      nedá se zvolit ručně — viz [ADR 005](docs/adr/005-stupen-se-odvoduje-z-dukazu.md))
 - [ ] Přehled otevřených ticketů s filtrováním podle stavu a typu komponenty.
+
+### Data
+
+- [x] Škála `ConditionGrade` (viz níže) s verzí a možností rozšíření bez mazání
+      historie. (I3: vazba kus → hodnocení 1:N, oprava stupně je nový řádek)
+- [ ] `RepairTicket` jako workflow: `received` → `diagnostics` → `repair` → `testing` →
+      `grading` → `done`, s přechody omezenými podle role. (Záměrně mimo I3 —
+      jednoprovazorová aplikace; viz [Známé omezení](docs/funkce/005-repas-a-ohodnoceni.md#známé-omezení))
+- [x] Evidence testů na ticketu: krok, výsledek (`pass`/`fail`), poznámka, čas, autor.
+      (I3: `TestEvidence` má typ testu, výsledek, příznak nalezené vady a datum;
+      autora ani přílohu zatím ne)
+- [ ] Checklist kroků per typ komponenty (např. CPU = funkční test + teplotní zátěž).
+      (Otevřené — má přijít z reálného provozu, ne jako výjimka ze škály)
 
 ### Testy a dokumentace
 
@@ -347,6 +385,16 @@ stránky), **tech** (architektura a integrace). U každé je uvedeno, kdo rozhod
     společná objednávka s rozdělením platby (produkt)
 14. **Cenové rozpočty kategorií** — číselné hranice kategorií Základ/Střední/Premium a způsob
     jejich průběžného přehodnocování (produkt)
+15. **Časová platnost stavového hodnocení** — má stupeň A–D po určité době zhasnout a kus
+    se vrátit do repasu? Zatím žádná platnost není, datum posledního testu je jen
+    informace pro provozovatele; odpověď má přijít z reálného provozu (produkt +
+    tech, viz [dokument funkce 005](docs/funkce/005-repas-a-ohodnoceni.md))
+16. **Ukládání příloh důkazů** — kde skladovat snímky a výstupy testů a jak je
+    doručit klientovi; dnes je `TestEvidence.priloha` nevyužitý sloupec (tech,
+    viz [ADR 004](docs/adr/README.md))
+17. **Autorizace zápisů do Repasu** — při zavedení přihlášení musí každá akce v
+    `src/server/actions/repas.ts` začít kontrolou relace a role; dnes je aplikace
+    jednoprovazorová a autorizace není žádná (tech, viz [ADR 003](docs/adr/README.md))
 
 ## Mimo rozsah (MVP)
 

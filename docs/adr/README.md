@@ -56,11 +56,14 @@ aby šlo později vyhledat „co jsme se rozhodli udělat".
 | 002   | SQLite a Drizzle pro ukázkovou funkci výkupu | Přijato | 2026-09-29 | [002-sqlite-a-drizzle-pro-ukazkove-funkce.md](002-sqlite-a-drizzle-pro-ukazkove-funkce.md) |
 | 003   | Přihlášení a model rolí           | Navrženo  |             | zatím nevytvořeno            |
 | 004   | Ukládání příloh testů            | Navrženo  |             | zatím nevytvořeno            |
+| 005   | Stupeň A–D se odvozuje z důkazů   | Přijato   | 2026-09-29 | [005-stupen-se-odvoduje-z-dukazu.md](005-stupen-se-odvoduje-z-dukazu.md) |
 
 Řádky 003 a 004 odpovídají otevřeným otázkám v [architektuře](../architektura.md).
 Zatím nevytvořený záznam vznikne v okamžiku, kdy bude otázka rozhodnuta, a řádek se
 doplní o odkaz na soubor. Otázka databáze a persistence byla rozhodnuta v ADR 002:
 SQLite přes Drizzle, prázdná databáze a demo data výhradně přes `pnpm db:seed`.
+Otázka, zda se stupeň stavového hodnocení volí, nebo odvozuje z důkazů, byla
+rozhodnuta v ADR 005: odvozuje se.
 
 ## 000: Základní stack
 

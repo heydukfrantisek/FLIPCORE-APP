@@ -400,12 +400,19 @@ export const KUSY: SeedKus[] = [
   },
 ];
 
+/**
+ * Zásahy a testy jsou demo data pro odvození stupně podle
+ * `docs/funkce/005-repas-a-ohodnoceni.md`: na různých kusech záměrně vychází
+ * stupeň `A`, `B`, `C`, `D` i žádný. Datum je ISO `RRRR-MM-DD`, aby šlo
+ * použít `Date.parse` při porovnávání s posledním zásahem.
+ */
 export const ZASAHY: RepairTicket[] = [
   {
     id: "rep-01",
     kusId: "kus-04",
     typZasahu: "cisteni",
     popis: "Vyčištění chladiče a výměna termopasty.",
+    nahradniDil: false,
     naklady: 3500,
     provedenoKdy: "2026-08-02",
   },
@@ -414,6 +421,7 @@ export const ZASAHY: RepairTicket[] = [
     kusId: "kus-04",
     typZasahu: "testovani",
     popis: "Zátěžový test 30 minut, teploty v normě.",
+    nahradniDil: false,
     naklady: 0,
     provedenoKdy: "2026-08-02",
   },
@@ -422,6 +430,7 @@ export const ZASAHY: RepairTicket[] = [
     kusId: "kus-05",
     typZasahu: "vymena",
     popis: "Výměna ventilátoru, který hučel.",
+    nahradniDil: true,
     naklady: 12000,
     provedenoKdy: "2026-09-01",
   },
@@ -430,6 +439,7 @@ export const ZASAHY: RepairTicket[] = [
     kusId: "kus-13",
     typZasahu: "testovani",
     popis: "Měření na vstupu 5V a 12V, rozsah mimo toleranci.",
+    nahradniDil: false,
     naklady: 0,
     provedenoKdy: "2026-08-20",
   },
@@ -438,32 +448,165 @@ export const ZASAHY: RepairTicket[] = [
     kusId: "kus-10",
     typZasahu: "oprava",
     popis: "Defektní hlavačku, kus uvolněn na náhradní díly.",
+    nahradniDil: false,
     naklady: 0,
     provedenoKdy: "2026-08-24",
+  },
+  {
+    id: "rep-06",
+    kusId: "kus-03",
+    typZasahu: "vymena",
+    popis: "Výměna chladiče CPU, který se přehříval pod zátěží.",
+    nahradniDil: true,
+    naklady: 18000,
+    provedenoKdy: "2026-09-02",
+  },
+  {
+    id: "rep-07",
+    kusId: "kus-15",
+    typZasahu: "cisteni",
+    popis: "Vyčištění lamel chladiče a dosednutí větráku.",
+    nahradniDil: false,
+    naklady: 0,
+    provedenoKdy: "2026-09-07",
   },
 ];
 
 export const TESTY: TestEvidence[] = [
+  // Pro ukázku odvození: `C` (zásah + funkční test), `D` (selhání) a `B` (vada).
   {
     id: "tst-01",
     kusId: "kus-04",
     nazevTestu: "Zátěžový test 30 min",
+    typTestu: "profil",
     vysledek: "prosel",
+    nalezenaVada: false,
     provedenoKdy: "2026-08-02",
   },
   {
     id: "tst-02",
     kusId: "kus-13",
     nazevTestu: "Měření napětí",
+    typTestu: "funkcni",
     vysledek: "casti",
+    nalezenaVada: false,
     provedenoKdy: "2026-08-20",
   },
   {
     id: "tst-03",
     kusId: "kus-10",
     nazevTestu: "Kontrola SMART",
+    typTestu: "funkcni",
     vysledek: "selhal",
+    nalezenaVada: false,
     provedenoKdy: "2026-08-24",
+  },
+  // K tomu vizuální kontrola s nálezem: dohromady profil + vizuálka dávají `B`.
+  {
+    id: "tst-04",
+    kusId: "kus-04",
+    nazevTestu: "Vizuální kontrola krytu a větráků",
+    typTestu: "vizualni",
+    vysledek: "casti",
+    nalezenaVada: true,
+    provedenoKdy: "2026-08-02",
+  },
+  // Stupeň A: zásah + profil prošel + vizuální kontrola bez vady.
+  {
+    id: "tst-05",
+    kusId: "kus-05",
+    nazevTestu: "Test herního profilu",
+    typTestu: "profil",
+    vysledek: "prosel",
+    nalezenaVada: false,
+    provedenoKdy: "2026-09-01",
+  },
+  {
+    id: "tst-06",
+    kusId: "kus-05",
+    nazevTestu: "Vizuální kontrola krytu",
+    typTestu: "vizualni",
+    vysledek: "prosel",
+    nalezenaVada: false,
+    provedenoKdy: "2026-09-01",
+  },
+  // Stupeň C: zásah a funkční test, který prošel jen v ověřeném rozsahu.
+  {
+    id: "tst-07",
+    kusId: "kus-03",
+    nazevTestu: "Test chlazení pod zátěží 20 min",
+    typTestu: "funkcni",
+    vysledek: "prosel",
+    nalezenaVada: false,
+    provedenoKdy: "2026-09-02",
+  },
+  // Stupeň A: profil prošel a vizuální kontrola nenašla žádnou vadu.
+  {
+    id: "tst-08",
+    kusId: "kus-01",
+    nazevTestu: "Test základního profilu",
+    typTestu: "profil",
+    vysledek: "prosel",
+    nalezenaVada: false,
+    provedenoKdy: "2026-09-12",
+  },
+  {
+    id: "tst-09",
+    kusId: "kus-01",
+    nazevTestu: "Vizuální kontrola",
+    typTestu: "vizualni",
+    vysledek: "prosel",
+    nalezenaVada: false,
+    provedenoKdy: "2026-09-12",
+  },
+  // Staré testy z před zásahu (rep-07): nepočítají se, takže profilový průchod
+  // nepomůže a kus skončí na `C` — bez čerstvého profilu a vizuálky nevznikne `A`.
+  {
+    id: "tst-10",
+    kusId: "kus-15",
+    nazevTestu: "Test předání z výkupu",
+    typTestu: "profil",
+    vysledek: "prosel",
+    nalezenaVada: false,
+    provedenoKdy: "2026-08-30",
+  },
+  {
+    id: "tst-11",
+    kusId: "kus-15",
+    nazevTestu: "Vizuální kontrola předání",
+    typTestu: "vizualni",
+    vysledek: "prosel",
+    nalezenaVada: false,
+    provedenoKdy: "2026-08-30",
+  },
+  // Kus bez zásahu a bez profilového testu: žádný stupeň, UI má říct, co chybí.
+  {
+    id: "tst-12",
+    kusId: "kus-09",
+    nazevTestu: "Kontrola přenosu rychlosti",
+    typTestu: "funkcni",
+    vysledek: "casti",
+    nalezenaVada: false,
+    provedenoKdy: "2026-09-13",
+  },
+  // Stupeň B: stejný profilový průchod, ale vizuální kontrola nalezla vadu.
+  {
+    id: "tst-13",
+    kusId: "kus-02",
+    nazevTestu: "Test základního profilu",
+    typTestu: "profil",
+    vysledek: "prosel",
+    nalezenaVada: false,
+    provedenoKdy: "2026-09-14",
+  },
+  {
+    id: "tst-14",
+    kusId: "kus-02",
+    nazevTestu: "Vizuální kontrola krytu",
+    typTestu: "vizualni",
+    vysledek: "prosel",
+    nalezenaVada: true,
+    provedenoKdy: "2026-09-14",
   },
 ];
 
