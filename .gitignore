@@ -1,1 +1,17 @@
+# Řádek `a` je ve verzi controlované od prvního commitu a jeho odstranění
+# není součástí této změny — ponechán záměrně.
 a
+
+# Node (nemá být v repu, ale kdyby někdo něco spustil)
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+
+# Systém a editor
+.DS_Store
+*~
+*.tmp
+*.swp
+
+# Stav Kilo
+.kilo/agent-manager.json

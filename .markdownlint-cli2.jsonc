@@ -1,0 +1,19 @@
+{
+  // Výchozí pravidla markdownlint jsou pro tuto dokumentaci příliš přísná,
+  // proto jsou upravená. Záměr výjimek:
+  // - MD013 (délka řádku) vypnuto: české tabulky s cenami, tiery a specifikacemi
+  //   jsou široké a zalamovat řádky v tabulce je nelze.
+  // - MD033 (inline HTML) vypnuto: aby se v tabulkách dalo použít <br> a v šablonách
+  //   inline zvýraznění, aniž to padalo na lintu.
+  // - MD024 (duplicitní nadpisy) vypnuto: dokumenty záměrně opakují stejné
+  //   podnadpisy (např. "### Výhody" / "### Nevýhody") pod různými H2 sekcemi,
+  //   aby každá sekce stála sama o sobě a šla odkázat. siblings_only by to padalo.
+  // - MD046 (styl kódu bloků) = fenced: ukázky kódu se píší v ``` blocích.
+  // MD041 (první řádek musí být nadpis) zůstává na výchozí hodnotě — repo dodržuje H1.
+  "config": {
+    "MD013": false,
+    "MD033": false,
+    "MD024": false,
+    "MD046": "fenced"
+  }
+}

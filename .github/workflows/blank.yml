@@ -1,36 +1,39 @@
-# This is a basic workflow to help you get started with Actions
-
+# Soubor se jmenuje blank.yml z dřívějška (původní GitHub starter workflow),
+# ale už starter šablona neobsahuje — je to reálná kontrola dokumentace.
 name: CI
 
-# Controls when the workflow will run
+# Kontrola běží na push a PR do mainu a lze ji spustit i ručně.
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  lint:
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      # markdownlint nad Markdownem v repu. Repo nemá package.json a nesmí vzniknout,
+      # proto běží přes akci, ne přes npm install.
+      # Pozn.: akce v20 má vstup `globs` (množné číslo), takže tady není `glob`.
+      # Konfiguraci pravidel není potřeba přidávat jako krok — akce si ji automaticky
+      # načte z .markdownlint-cli2.jsonc v kořeni repa.
+      - name: Markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v20
+        with:
+          globs: |
+            docs/**/*.md
+            templates/**/*.md
+            README.md
+            AGENTS.md
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+      # Kontrola, že v Markdownu nejsou mrtvé odkazy na jiné soubory repa.
+      - name: Kontrola odkazů
+        uses: lycheev/lychee-action@v2
+        with:
+          args: --no-progress './**/*.md' './README.md' './AGENTS.md'
+          fail: true
